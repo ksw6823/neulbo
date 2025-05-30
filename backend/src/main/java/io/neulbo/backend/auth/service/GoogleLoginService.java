@@ -1,7 +1,11 @@
-package io.neulbo.backend.OAuth.service;
+package io.neulbo.backend.auth.service;
 
-import io.neulbo.backend.OAuth.dto.OAuthToken;
-import io.neulbo.backend.OAuth.dto.OAuthUser;
+import io.neulbo.backend.auth.dto.LoginResponse;
+import io.neulbo.backend.auth.dto.OAuthToken;
+import io.neulbo.backend.auth.dto.OAuthUser;
+import io.neulbo.backend.auth.jwt.JwtProvider;
+import io.neulbo.backend.user.domain.User;
+import io.neulbo.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -10,12 +14,15 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.Map;
+import java.util.Optional;
 
 @Service("google")
 @RequiredArgsConstructor
 public class GoogleLoginService implements OAuthLoginService {
 
     private final WebClient webClient;
+    private final UserRepository userRepository;
+    private final JwtProvider jwtProvider;
 
     @Value("${spring.security.oauth2.client.registration.google.client-id}")
     private String clientId;
@@ -64,10 +71,40 @@ public class GoogleLoginService implements OAuthLoginService {
                 .block();
 
         return new OAuthUser(
-                (String) result.get("sub"),
-                (String) result.get("email"),
-                (String) result.get("name"),
-                (String) result.get("picture")
+                (String) result.get("sub"),     // social_id
+                (String) result.get("name"),    // nickname
+                (String) result.get("email"),   // email
+                (String) result.get("picture")  // profile image
+        );
+    }
+
+    @Override
+    public LoginResponse login(String code, String provider) {
+        OAuthToken token = getToken(code);
+        OAuthUser userInfo = getUserInfo(token.accessToken());
+
+        boolean isNewUser = false;
+        User user;
+
+        Optional<User> existingUser = userRepository.findBySocialIdAndProvider(userInfo.id(), provider.toLowerCase());
+
+        if (existingUser.isPresent()) {
+            user = existingUser.get();
+        } else {
+            user = userRepository.save(User.builder()
+                    .provider(provider.toLowerCase())
+                    .socialId(userInfo.id())
+                    .nickname(userInfo.nickname())
+                    .email(userInfo.email())
+                    .profileImage(userInfo.profileImage())
+                    .build());
+            isNewUser = true;
+        }
+
+        return new LoginResponse(
+                jwtProvider.createAccessToken(user.getId()),
+                jwtProvider.createRefreshToken(user.getId()),
+                isNewUser
         );
     }
 }

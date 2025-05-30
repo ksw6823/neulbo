@@ -30,6 +30,9 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	implementation 'org.slf4j:slf4j-api:2.0.9'
+	implementation 'com.auth0:java-jwt:3.18.1'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
 	runtimeOnly 'org.postgresql:postgresql'
 
@@ -39,7 +42,6 @@ dependencies {
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 
-	implementation 'org.slf4j:slf4j-api:2.0.9'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'

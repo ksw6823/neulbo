@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-
-import 'Screen/main_screen.dart';
+import 'package:neulbo/Screen/login_screen.dart';
 
 void main() {
   runApp(const MaterialApp(
-    home: MainScreen(),
+    home: LoginScreen(),
   ));
 }

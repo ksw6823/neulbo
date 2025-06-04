@@ -30,6 +30,16 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <activity>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kakao${YOUR_KAKAO_NATIVE_APP_KEY}" />
+                <data android:scheme="naver${YOUR_NAVER_CLIENT_ID}" />
+                <data android:scheme="com.googleusercontent.apps.${YOUR_GOOGLE_CLIENT_ID}" />
+            </intent-filter>
+        </activity>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

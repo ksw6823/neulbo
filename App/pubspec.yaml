@@ -40,6 +40,7 @@ dependencies:
   flutter_dotenv: ^5.1.0  # 환경 변수 관리
   json_annotation: ^4.8.1  # JSON 직렬화/역직렬화
   flutter_appauth: ^6.0.4  # OAuth 인증을 위한 패키지
+  kakao_flutter_sdk: ^1.9.7+3
 
 dev_dependencies:
   flutter_test:
@@ -66,7 +67,8 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
+  assets:
+    - .env
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 

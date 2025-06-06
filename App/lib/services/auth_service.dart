@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
 
 class AuthService {
   final String baseUrl = dotenv.env['API_BASE_URL'] ?? '';
@@ -10,6 +11,7 @@ class AuthService {
   // OAuth 로그인 요청
   Future<Map<String, dynamic>> loginWithOAuth(String provider, String code) async {
     try {
+      /// 이 부분 backend api 서버 주소로 바꾸면 됨 ///
       final response = await http.post(
         Uri.parse('$baseUrl/api/auth/$provider'),
         headers: {'Content-Type': 'application/json'},
@@ -55,4 +57,4 @@ class AuthService {
   Future<void> logout() async {
     await storage.deleteAll();
   }
-} 
+}

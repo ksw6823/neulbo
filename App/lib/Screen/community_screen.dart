@@ -7,7 +7,7 @@ class CommunityScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("쿨쿠리_커뮤니티"),
+        title: Text("쿨쿨_커뮤니티"),
       ),
       body: Row(
         mainAxisAlignment: MainAxisAlignment.center,

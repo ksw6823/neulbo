@@ -39,8 +39,8 @@ dependencies:
   url_launcher: ^6.2.5  # OAuth 인증을 위한 브라우저 실행
   flutter_dotenv: ^5.1.0  # 환경 변수 관리
   json_annotation: ^4.8.1  # JSON 직렬화/역직렬화
+  kakao_flutter_sdk: ^1.9.0  # 카카오 SDK
   flutter_appauth: ^6.0.4  # OAuth 인증을 위한 패키지
-  kakao_flutter_sdk: ^1.9.7+3
 
 dev_dependencies:
   flutter_test:

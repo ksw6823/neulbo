@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:kakao_flutter_sdk/kakao_flutter_sdk.dart';
+import 'dart:io' show Platform;
 
 import '../services/auth_service.dart';
 
@@ -49,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// 네이버 로그인 버튼 ///
+  /// 네이버 로그인 버튼 클릭 시 호출
   Future<void> _loginWithNaver() async {
     try {
       final AuthorizationResponse? result = await _appAuth.authorize(
@@ -64,22 +65,40 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
 
-      if (result != null) {
+      if (result != null && result.authorizationCode != null) {
+        // 인가 코드를 백엔드로 전달
         final response = await _authService.loginWithOAuth('naver', result.authorizationCode!);
-        print('Naver 로그인 성공: ${response['access_token']}');
+        print('✅ Naver 로그인 성공: ${response['access_token']}');
+      } else {
+        print('❌ 네이버 인가 코드가 null입니다.');
       }
     } catch (e) {
-      print('Naver 로그인 실패: $e');
+      print('❌ 네이버 로그인 실패: $e');
     }
   }
 
-  /// 구글 로그인 버튼 ///
+  /// 구글 로그인 버튼 클릭 시 호출
   Future<void> _loginWithGoogle() async {
     try {
+      // 플랫폼별로 다른 Client ID 사용
+      String clientId;
+      String redirectUri;
+      
+      if (Platform.isAndroid) {
+        clientId = dotenv.env['GOOGLE_CLIENT_ID_ANDROID'] ?? '';
+        redirectUri = 'com.googleusercontent.apps.${clientId.split('.').reversed.join('.')}://oauth';
+      } else if (Platform.isIOS) {
+        clientId = dotenv.env['GOOGLE_CLIENT_ID_IOS'] ?? '';
+        redirectUri = 'com.googleusercontent.apps.${clientId.split('.').reversed.join('.')}://oauth';
+      } else {
+        print('❌ 지원하지 않는 플랫폼입니다.');
+        return;
+      }
+
       final AuthorizationResponse? result = await _appAuth.authorize(
         AuthorizationRequest(
-          dotenv.env['GOOGLE_CLIENT_ID'] ?? '',
-          'com.googleusercontent.apps.${dotenv.env['GOOGLE_CLIENT_ID']}://oauth',
+          clientId,
+          redirectUri,
           serviceConfiguration: const AuthorizationServiceConfiguration(
             authorizationEndpoint: 'https://accounts.google.com/o/oauth2/auth',
             tokenEndpoint: 'https://oauth2.googleapis.com/token',
@@ -88,12 +107,14 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
 
-      if (result != null) {
+      if (result != null && result.authorizationCode != null) {
         final response = await _authService.loginWithOAuth('google', result.authorizationCode!);
-        print('Google 로그인 성공: ${response['access_token']}');
+        print('✅ Google 로그인 성공: ${response['access_token']}');
+      } else {
+        print('❌ 구글 인가 코드가 null입니다.');
       }
     } catch (e) {
-      print('Google 로그인 실패: $e');
+      print('❌ 구글 로그인 실패: $e');
     }
   }
 

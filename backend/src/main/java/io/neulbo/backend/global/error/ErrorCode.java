@@ -25,6 +25,9 @@ public enum ErrorCode {
     ENTITY_NOT_FOUND(HttpStatus.NOT_FOUND, "E301", "요청한 리소스를 찾을 수 없습니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "E302", "사용자를 찾을 수 없습니다."),
     
+    // 405 Method Not Allowed
+    METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "E251", "지원하지 않는 HTTP 메서드입니다."),
+    
     // 409 Conflict
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "E401", "이미 존재하는 리소스입니다."),
     

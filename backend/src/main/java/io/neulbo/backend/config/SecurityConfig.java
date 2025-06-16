@@ -22,7 +22,8 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/oauth/login/**").permitAll()
+                        .requestMatchers("/oauth/login/**", "/token/**").permitAll() // 토큰 관련 엔드포인트가 인증 필요로 막힐 위험 있음
+                        .requestMatchers("/actuator/health").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

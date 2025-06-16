@@ -3,31 +3,33 @@ package io.neulbo.backend.auth.jwt;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.DecodedJWT;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.Date;
 
 @Component
-@RequiredArgsConstructor
 public class JwtProvider {
 
-    @Value("${jwt.secret}")
-    private String secret;
+    // 메모리 효율성을 위해 static final로 선언
+    private final String secret;
 
     // 30분짜리 Access Token
-    private final long accessTokenValidity = 1000 * 60 * 30;
+    private static final long ACCESS_TOKEN_VALIDITY = 1000 * 60 * 30;
 
     // 7일짜리 Refresh Token
-    private final long refreshTokenValidity = 1000L * 60 * 60 * 24 * 7;
+    private static final long REFRESH_TOKEN_VALIDITY = 1000L * 60 * 60 * 24 * 7;
+
+    public JwtProvider(@Value("${jwt.secret}") String secret) {
+        this.secret = secret;
+    }
 
     // 주어진 사용자 ID를 기반으로 30분 동안 유효한 액세스 토큰을 생성
     public String createAccessToken(Long userId) {
         return JWT.create()
                 .withSubject(String.valueOf(userId))
                 .withIssuedAt(new Date())
-                .withExpiresAt(new Date(System.currentTimeMillis() + accessTokenValidity))
+                .withExpiresAt(new Date(System.currentTimeMillis() + ACCESS_TOKEN_VALIDITY))
                 .sign(Algorithm.HMAC256(secret));
     }
 
@@ -36,7 +38,7 @@ public class JwtProvider {
         return JWT.create()
                 .withSubject(String.valueOf(userId))
                 .withIssuedAt(new Date())
-                .withExpiresAt(new Date(System.currentTimeMillis() + refreshTokenValidity))
+                .withExpiresAt(new Date(System.currentTimeMillis() + REFRESH_TOKEN_VALIDITY))
                 .sign(Algorithm.HMAC256(secret));
     }
 

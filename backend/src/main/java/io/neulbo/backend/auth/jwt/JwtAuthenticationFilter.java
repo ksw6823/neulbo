@@ -21,6 +21,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -53,12 +54,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 Long userId = jwtProvider.getUserIdFromToken(token);
                 
-                // 사용자 정보 조회 (선택적)
+                // JWT 토큰에서 권한 정보 추출 (우선순위 1)
+                List<String> rolesFromToken = jwtProvider.getRolesFromToken(token);
+                
+                // 사용자 정보 조회하여 최신 권한 정보 확인 (우선순위 2)
                 User user = userRepository.findById(userId).orElse(null);
                 String provider = user != null ? user.getProvider() : "unknown";
                 
-                // CustomUserDetails 생성 (기본 ROLE_USER 권한 포함)
-                CustomUserDetails userDetails = new CustomUserDetails(userId, provider);
+                // 최종 권한 결정: 데이터베이스 권한이 있으면 우선 사용, 없으면 토큰 권한 사용
+                List<String> finalRoles;
+                if (user != null && user.getRole() != null && !user.getRole().trim().isEmpty()) {
+                    finalRoles = List.of(user.getRole());
+                } else {
+                    finalRoles = rolesFromToken;
+                }
+                
+                // CustomUserDetails 생성 (동적 권한 포함)
+                CustomUserDetails userDetails = new CustomUserDetails(userId, provider, finalRoles);
                 
                 UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());

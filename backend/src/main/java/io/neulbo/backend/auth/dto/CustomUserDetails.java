@@ -23,6 +23,15 @@ public class CustomUserDetails implements UserDetails {
         this.authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
     }
 
+    public CustomUserDetails(Long userId, String provider, List<String> roles) {
+        this.userId = userId;
+        this.provider = provider;
+        // 역할 문자열 리스트를 GrantedAuthority로 변환
+        this.authorities = roles.stream()
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                .toList();
+    }
+
     public CustomUserDetails(Long userId, String provider, Collection<? extends GrantedAuthority> authorities) {
         this.userId = userId;
         this.provider = provider;

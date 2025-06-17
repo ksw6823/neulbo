@@ -33,6 +33,10 @@ public class User {
     @Column(name = "profile_image", length = 255)
     private String profileImage;
 
+    @Column(name = "role", nullable = false, length = 20)
+    @Builder.Default
+    private String role = "USER";
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

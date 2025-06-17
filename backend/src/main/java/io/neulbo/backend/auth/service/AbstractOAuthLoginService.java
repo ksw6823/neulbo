@@ -14,7 +14,10 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
+import java.util.List;
 import java.util.Optional;
 
 @Slf4j
@@ -35,16 +38,31 @@ public abstract class AbstractOAuthLoginService implements OAuthLoginService {
     @Override
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public LoginResponse login(String code, String provider) {
-        OAuthToken token = getToken(code);
-        OAuthUser userInfo = getUserInfo(token.accessToken());
+        // 리액티브 메서드를 호출하고 블로킹으로 변환 (하위 호환성을 위해)
+        return loginReactive(code, provider)
+                .subscribeOn(Schedulers.boundedElastic())
+                .block();
+    }
 
-        UserCreationResult result = findOrCreateUser(userInfo, provider.toLowerCase());
-
-        return new LoginResponse(
-                jwtProvider.createAccessToken(result.user().getId()),
-                jwtProvider.createRefreshToken(result.user().getId()),
-                result.isNewUser()
-        );
+    /**
+     * 리액티브 공통 로그인 로직
+     */
+    @Override
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public Mono<LoginResponse> loginReactive(String code, String provider) {
+        return getTokenReactive(code)
+                .flatMap(token -> getUserInfoReactive(token.accessToken())
+                        .flatMap(userInfo -> findOrCreateUserReactive(userInfo, provider.toLowerCase())
+                                .map(result -> {
+                                    List<String> roles = List.of(result.user().getRole());
+                                    
+                                    return new LoginResponse(
+                                            jwtProvider.createAccessToken(result.user().getId(), roles),
+                                            jwtProvider.createRefreshToken(result.user().getId()),
+                                            result.isNewUser()
+                                    );
+                                })))
+                .subscribeOn(Schedulers.boundedElastic()); // 데이터베이스 작업을 위한 스케줄러
     }
 
     /**
@@ -91,10 +109,65 @@ public abstract class AbstractOAuthLoginService implements OAuthLoginService {
         }
     }
 
+    /**
+     * 리액티브 사용자 조회 또는 생성 (동시성 안전)
+     * UNIQUE 제약조건과 예외 처리를 통해 중복 생성 방지
+     */
+    private Mono<UserCreationResult> findOrCreateUserReactive(OAuthUser userInfo, String provider) {
+        return Mono.fromCallable(() -> {
+            // 1차: 기존 사용자 조회
+            Optional<User> existingUser = userRepository.findBySocialIdAndProvider(userInfo.id(), provider);
+            if (existingUser.isPresent()) {
+                return new UserCreationResult(existingUser.get(), false);
+            }
+
+            // 2차: 새 사용자 생성 시도
+            try {
+                User newUser = User.builder()
+                        .provider(provider)
+                        .socialId(userInfo.id())
+                        .nickname(userInfo.nickname())
+                        .email(userInfo.email())
+                        .profileImage(userInfo.profileImage())
+                        .build();
+                
+                User savedUser = userRepository.save(newUser);
+                return new UserCreationResult(savedUser, true);
+            } catch (DataIntegrityViolationException e) {
+                // 동시성으로 인한 중복 생성 시도 시 발생
+                log.warn("Duplicate user creation attempt for provider: {}, socialId: {}", provider, userInfo.id());
+                
+                // 3차: 다시 조회 (다른 스레드에서 생성된 사용자)
+                Optional<User> retryUser = userRepository.findBySocialIdAndProvider(userInfo.id(), provider);
+                if (retryUser.isPresent()) {
+                    return new UserCreationResult(retryUser.get(), false);
+                }
+                
+                // 예상치 못한 상황
+                log.error("Failed to find user after DataIntegrityViolationException for provider: {}, socialId: {}", provider, userInfo.id());
+                throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+            }
+        })
+        .subscribeOn(Schedulers.boundedElastic()) // 데이터베이스 작업을 별도 스레드에서 실행
+        .onErrorMap(Exception.class, e -> {
+            if (e instanceof BusinessException) {
+                return e;
+            }
+            log.error("Failed to find or create user for provider: {}, socialId: {}", provider, userInfo.id(), e);
+            return new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, e);
+        });
+    }
+
     // 각 구현체에서 제공자별 로직을 구현해야 하는 추상 메서드들
     @Override
     public abstract OAuthToken getToken(String code);
 
     @Override
     public abstract OAuthUser getUserInfo(String accessToken);
+
+    @Override
+    public abstract Mono<OAuthToken> getTokenReactive(String code);
+
+    @Override
+    public abstract Mono<OAuthUser> getUserInfoReactive(String accessToken);
 } 

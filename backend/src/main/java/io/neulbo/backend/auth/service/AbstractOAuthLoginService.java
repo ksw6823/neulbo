@@ -29,7 +29,11 @@ public abstract class AbstractOAuthLoginService implements OAuthLoginService {
     protected final JwtProvider jwtProvider;
 
     /**
-     * 공통 로그인 로직
+     * 블로킹 로그인 로직 (하위 호환성을 위해)
+     * 
+     * 이 메서드는 리액티브 체인 외부에서만 사용되어야 합니다.
+     * 리액티브 컨텍스트에서는 loginReactive()를 사용하세요.
+     * 
      * 1. 토큰 획득
      * 2. 사용자 정보 조회
      * 3. 사용자 조회/생성 (동시성 안전)
@@ -38,7 +42,7 @@ public abstract class AbstractOAuthLoginService implements OAuthLoginService {
     @Override
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public LoginResponse login(String code, String provider) {
-        // 리액티브 메서드를 호출하고 블로킹으로 변환 (하위 호환성을 위해)
+        // 별도 스레드에서 리액티브 메서드를 블로킹 호출로 변환
         return loginReactive(code, provider)
                 .subscribeOn(Schedulers.boundedElastic())
                 .block();
@@ -54,7 +58,7 @@ public abstract class AbstractOAuthLoginService implements OAuthLoginService {
                 .flatMap(token -> getUserInfoReactive(token.accessToken())
                         .flatMap(userInfo -> findOrCreateUserReactive(userInfo, provider.toLowerCase())
                                 .map(result -> {
-                                    List<String> roles = List.of(result.user().getRole());
+                                    List<String> roles = createSafeRolesList(result.user().getRole());
                                     
                                     return new LoginResponse(
                                             jwtProvider.createAccessToken(result.user().getId(), roles),
@@ -69,6 +73,24 @@ public abstract class AbstractOAuthLoginService implements OAuthLoginService {
      * 사용자 생성 결과를 담는 레코드
      */
     private record UserCreationResult(User user, boolean isNewUser) {}
+
+    /**
+     * 안전한 역할 리스트 생성
+     * 
+     * null이나 빈 문자열인 경우 기본 "USER" 역할을 제공하여
+     * List.of(null) NullPointerException을 방지합니다.
+     * 
+     * @param role 사용자 역할 (null 가능)
+     * @return 안전한 역할 리스트 (항상 최소 하나의 역할 포함)
+     */
+    private List<String> createSafeRolesList(String role) {
+        if (role != null && !role.trim().isEmpty()) {
+            return List.of(role.trim());
+        }
+        
+        log.debug("User role is null or empty, assigning default USER role");
+        return List.of("USER");
+    }
 
     /**
      * 사용자 조회 또는 생성 (동시성 안전)

@@ -3,11 +3,11 @@ package io.neulbo.backend.auth.service;
 import io.neulbo.backend.auth.dto.OAuthToken;
 import io.neulbo.backend.auth.dto.OAuthUser;
 import io.neulbo.backend.auth.jwt.JwtProvider;
+import io.neulbo.backend.config.OAuth2Properties;
 import io.neulbo.backend.global.error.ErrorCode;
 import io.neulbo.backend.global.exception.BusinessException;
 import io.neulbo.backend.user.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
@@ -21,28 +21,24 @@ import reactor.core.scheduler.Schedulers;
 @Service("kakao")
 public class KakaoLoginService extends AbstractOAuthLoginService {
 
-    public KakaoLoginService(WebClient webClient, UserRepository userRepository, JwtProvider jwtProvider) {
+    private final OAuth2Properties.Registration.ClientConfig kakaoClient;
+    private final OAuth2Properties.Provider.ProviderConfig kakaoProvider;
+
+    public KakaoLoginService(WebClient webClient, UserRepository userRepository, JwtProvider jwtProvider, OAuth2Properties oAuth2Properties) {
         super(webClient, userRepository, jwtProvider);
+        this.kakaoClient = oAuth2Properties.registration().kakao();
+        this.kakaoProvider = oAuth2Properties.provider().kakao();
     }
 
-    @Value("${spring.security.oauth2.client.registration.kakao.client-id}")
-    private String clientId;
-
-    @Value("${spring.security.oauth2.client.registration.kakao.client-secret}")
-    private String clientSecret;
-
-    @Value("${spring.security.oauth2.client.registration.kakao.redirect-uri}")
-    private String redirectUri;
-
-    @Value("${spring.security.oauth2.client.provider.kakao.token-uri}")
-    private String tokenUri;
-
-    @Value("${spring.security.oauth2.client.provider.kakao.user-info-uri}")
-    private String userInfoUri;
-
+    /**
+     * 블로킹 메서드 구현 (하위 호환성을 위해)
+     * 
+     * 이 메서드들은 리액티브 체인 외부에서만 사용되어야 합니다.
+     * 리액티브 컨텍스트에서는 getTokenReactive()를 사용하세요.
+     */
     @Override
     public OAuthToken getToken(String code) {
-        // 리액티브 메서드를 호출하고 블로킹으로 변환 (하위 호환성을 위해)
+        // 별도 스레드에서 리액티브 메서드를 블로킹 호출로 변환
         return getTokenReactive(code)
                 .subscribeOn(Schedulers.boundedElastic())
                 .block();
@@ -50,7 +46,7 @@ public class KakaoLoginService extends AbstractOAuthLoginService {
 
     @Override
     public OAuthUser getUserInfo(String accessToken) {
-        // 리액티브 메서드를 호출하고 블로킹으로 변환 (하위 호환성을 위해)
+        // 별도 스레드에서 리액티브 메서드를 블로킹 호출로 변환
         return getUserInfoReactive(accessToken)
                 .subscribeOn(Schedulers.boundedElastic())
                 .block();
@@ -64,12 +60,12 @@ public class KakaoLoginService extends AbstractOAuthLoginService {
         }
 
         return webClient.post()
-                .uri(tokenUri)
+                .uri(kakaoProvider.tokenUri())
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(BodyInserters.fromFormData("grant_type", "authorization_code")
-                        .with("client_id", clientId)
-                        .with("client_secret", clientSecret)
-                        .with("redirect_uri", redirectUri)
+                        .with("client_id", kakaoClient.clientId())
+                        .with("client_secret", kakaoClient.clientSecret())
+                        .with("redirect_uri", kakaoClient.redirectUri())
                         .with("code", code))
                 .retrieve()
                 .onStatus(
@@ -113,7 +109,7 @@ public class KakaoLoginService extends AbstractOAuthLoginService {
         }
 
         return webClient.get()
-                .uri(userInfoUri)
+                .uri(kakaoProvider.userInfoUri())
                 .headers(headers -> headers.setBearerAuth(accessToken))
                 .retrieve()
                 .onStatus(

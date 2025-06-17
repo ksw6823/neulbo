@@ -38,6 +38,11 @@ public class NaverLoginService extends AbstractOAuthLoginService {
 
     @Override
     public OAuthToken getToken(String code) {
+        // 입력 파라미터 검증
+        if (code == null || code.trim().isEmpty()) {
+            throw new BusinessException(ErrorCode.OAUTH_TOKEN_REQUEST_FAILED);
+        }
+
         try {
             Map<String, Object> result = webClient.post()
                     .uri(tokenUri)
@@ -48,43 +53,92 @@ public class NaverLoginService extends AbstractOAuthLoginService {
                             .with("redirect_uri", redirectUri)
                             .with("code", code))
                     .retrieve()
+                    .onStatus(
+                            status -> status.is4xxClientError() || status.is5xxServerError(),
+                            response -> response.bodyToMono(String.class)
+                                    .map(body -> new BusinessException(ErrorCode.OAUTH_TOKEN_REQUEST_FAILED))
+                    )
                     .bodyToMono(Map.class)
                     .block();
 
+            // 응답 결과 null 체크
             if (result == null) {
                 throw new BusinessException(ErrorCode.OAUTH_TOKEN_REQUEST_FAILED);
             }
 
-            String accessToken = (String) result.get("access_token");
-            if (accessToken == null) {
+            // 에러 응답 체크 (네이버는 에러 시 error 필드를 포함)
+            if (result.containsKey("error")) {
                 throw new BusinessException(ErrorCode.OAUTH_TOKEN_REQUEST_FAILED);
             }
 
-            // expires_in null 체크 및 안전한 변환
+            // 필수 필드 access_token 검증
+            Object accessTokenObj = result.get("access_token");
+            if (accessTokenObj == null || !(accessTokenObj instanceof String)) {
+                throw new BusinessException(ErrorCode.OAUTH_TOKEN_REQUEST_FAILED);
+            }
+            
+            String accessToken = (String) accessTokenObj;
+            if (accessToken.trim().isEmpty()) {
+                throw new BusinessException(ErrorCode.OAUTH_TOKEN_REQUEST_FAILED);
+            }
+
+            // token_type 안전하게 추출
+            String tokenType = null;
+            Object tokenTypeObj = result.get("token_type");
+            if (tokenTypeObj instanceof String) {
+                tokenType = (String) tokenTypeObj;
+            }
+
+            // refresh_token 안전하게 추출
+            String refreshToken = null;
+            Object refreshTokenObj = result.get("refresh_token");
+            if (refreshTokenObj instanceof String) {
+                refreshToken = (String) refreshTokenObj;
+            }
+
+            // expires_in 안전하게 추출 및 검증
             Long expiresIn = 0L;
             Object expiresInObj = result.get("expires_in");
             if (expiresInObj instanceof Number) {
-                expiresIn = ((Number) expiresInObj).longValue();
+                long value = ((Number) expiresInObj).longValue();
+                // 음수 값 검증
+                if (value >= 0) {
+                    expiresIn = value;
+                }
             }
 
             return new OAuthToken(
                     accessToken,
-                    (String) result.get("token_type"),
-                    (String) result.get("refresh_token"),
+                    tokenType,
+                    refreshToken,
                     expiresIn
             );
+        } catch (BusinessException e) {
+            // BusinessException은 그대로 재던지기
+            throw e;
         } catch (Exception e) {
+            // 네트워크 오류, 타임아웃, JSON 파싱 오류 등 모든 예외 처리
             throw new BusinessException(ErrorCode.OAUTH_TOKEN_REQUEST_FAILED);
         }
     }
 
     @Override
     public OAuthUser getUserInfo(String accessToken) {
+        // 입력 파라미터 검증
+        if (accessToken == null || accessToken.trim().isEmpty()) {
+            throw new BusinessException(ErrorCode.OAUTH_USER_INFO_REQUEST_FAILED);
+        }
+
         try {
             Map<String, Object> response = webClient.get()
                     .uri(userInfoUri)
                     .headers(headers -> headers.setBearerAuth(accessToken))
                     .retrieve()
+                    .onStatus(
+                            status -> status.is4xxClientError() || status.is5xxServerError(),
+                            responseEntity -> responseEntity.bodyToMono(String.class)
+                                    .map(body -> new BusinessException(ErrorCode.OAUTH_USER_INFO_REQUEST_FAILED))
+                    )
                     .bodyToMono(Map.class)
                     .block();
 
@@ -92,26 +146,63 @@ public class NaverLoginService extends AbstractOAuthLoginService {
                 throw new BusinessException(ErrorCode.OAUTH_USER_INFO_REQUEST_FAILED);
             }
 
+            // 에러 응답 체크 (네이버는 에러 시 error 필드를 포함)
+            if (response.containsKey("error")) {
+                throw new BusinessException(ErrorCode.OAUTH_USER_INFO_REQUEST_FAILED);
+            }
+
+            // 네이버 API response 구조: { "response": { "id": "...", ... } }
             Object responseObj = response.get("response");
-            if (!(responseObj instanceof Map)) {
+            if (responseObj == null || !(responseObj instanceof Map)) {
                 throw new BusinessException(ErrorCode.OAUTH_USER_INFO_REQUEST_FAILED);
             }
 
             @SuppressWarnings("unchecked")
             Map<String, Object> result = (Map<String, Object>) responseObj;
 
-            String socialId = (String) result.get("id");
-            if (socialId == null) {
+            // 필수 필드 id 검증
+            Object idObj = result.get("id");
+            if (idObj == null || !(idObj instanceof String)) {
                 throw new BusinessException(ErrorCode.OAUTH_USER_INFO_REQUEST_FAILED);
+            }
+            
+            String socialId = (String) idObj;
+            if (socialId.trim().isEmpty()) {
+                throw new BusinessException(ErrorCode.OAUTH_USER_INFO_REQUEST_FAILED);
+            }
+
+            // nickname 안전하게 추출
+            String nickname = "Unknown";
+            Object nicknameObj = result.get("nickname");
+            if (nicknameObj instanceof String && !((String) nicknameObj).trim().isEmpty()) {
+                nickname = (String) nicknameObj;
+            }
+
+            // email 안전하게 추출
+            String email = null;
+            Object emailObj = result.get("email");
+            if (emailObj instanceof String && !((String) emailObj).trim().isEmpty()) {
+                email = (String) emailObj;
+            }
+
+            // profile_image 안전하게 추출
+            String profileImage = null;
+            Object profileImageObj = result.get("profile_image");
+            if (profileImageObj instanceof String && !((String) profileImageObj).trim().isEmpty()) {
+                profileImage = (String) profileImageObj;
             }
 
             return new OAuthUser(
                     socialId,
-                    (String) result.getOrDefault("nickname", "Unknown"),
-                    (String) result.get("email"),
-                    (String) result.get("profile_image")
+                    nickname,
+                    email,
+                    profileImage
             );
+        } catch (BusinessException e) {
+            // BusinessException은 그대로 재던지기
+            throw e;
         } catch (Exception e) {
+            // 네트워크 오류, 타임아웃, JSON 파싱 오류 등 모든 예외 처리
             throw new BusinessException(ErrorCode.OAUTH_USER_INFO_REQUEST_FAILED);
         }
     }

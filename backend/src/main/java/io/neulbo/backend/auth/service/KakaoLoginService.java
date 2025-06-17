@@ -124,15 +124,30 @@ public class KakaoLoginService extends AbstractOAuthLoginService {
 
     @Override
     public OAuthUser getUserInfo(String accessToken) {
+        // 입력 파라미터 검증
+        if (accessToken == null || accessToken.trim().isEmpty()) {
+            throw new BusinessException(ErrorCode.OAUTH_USER_INFO_REQUEST_FAILED);
+        }
+
         try {
             Map<String, Object> result = webClient.get()
                     .uri(userInfoUri)
                     .headers(headers -> headers.setBearerAuth(accessToken))
                     .retrieve()
+                    .onStatus(
+                            status -> status.is4xxClientError() || status.is5xxServerError(),
+                            response -> response.bodyToMono(String.class)
+                                    .map(body -> new BusinessException(ErrorCode.OAUTH_USER_INFO_REQUEST_FAILED))
+                    )
                     .bodyToMono(Map.class)
                     .block();
 
             if (result == null || result.get("id") == null) {
+                throw new BusinessException(ErrorCode.OAUTH_USER_INFO_REQUEST_FAILED);
+            }
+
+            // 에러 응답 체크 (카카오는 에러 시 error 필드를 포함)
+            if (result.containsKey("error")) {
                 throw new BusinessException(ErrorCode.OAUTH_USER_INFO_REQUEST_FAILED);
             }
 

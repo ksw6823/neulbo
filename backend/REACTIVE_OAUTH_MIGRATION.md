@@ -161,43 +161,115 @@ public WebClient webClient() {
 
 ## 사용 가이드
 
-### 리액티브 API 사용 (권장)
-```java
-@Autowired
-private OAuthLoginService oauthService;
+### 🚀 리액티브 API 사용 (권장)
 
-public Mono<LoginResponse> handleLogin(String code, String provider) {
-    return oauthService.loginReactive(code, provider)
-            .doOnSuccess(response -> log.info("Login successful: {}", response.isNewUser()))
-            .doOnError(error -> log.error("Login failed", error));
+#### 컨트롤러에서 리액티브 방식
+```java
+@PostMapping("/oauth/login/{provider}")
+public Mono<ResponseEntity<LoginResponse>> login(
+        @PathVariable String provider,
+        @RequestBody OAuthCodeRequest request) {
+    return oauthService.loginReactive(request.code(), provider)
+            .map(ResponseEntity::ok)
+            .onErrorMap(Exception.class, e -> {
+                if (e instanceof BusinessException) {
+                    return e;
+                }
+                return new BusinessException(ErrorCode.OAUTH_TOKEN_REQUEST_FAILED, e);
+            });
 }
 ```
 
-### 기존 동기 API 사용 (하위 호환성)
+#### 서비스에서 리액티브 체이닝
 ```java
-@Autowired
-private OAuthLoginService oauthService;
+@Service
+public class UserService {
+    
+    @Autowired
+    private OAuthLoginService oauthService;
+    
+    public Mono<UserProfile> createUserProfile(String code, String provider) {
+        return oauthService.loginReactive(code, provider)
+                .flatMap(loginResponse -> userProfileService.createProfile(loginResponse))
+                .doOnSuccess(profile -> log.info("User profile created: {}", profile.getId()))
+                .doOnError(error -> log.error("Profile creation failed", error));
+    }
+}
+```
 
-public LoginResponse handleLogin(String code, String provider) {
-    return oauthService.login(code, provider); // 내부적으로 리액티브 사용
+### ⚠️ 블로킹 API 사용 (하위 호환성)
+
+#### 전용 블로킹 엔드포인트
+```java
+@PostMapping("/oauth/login/{provider}/blocking")
+public ResponseEntity<LoginResponse> loginBlocking(
+        @PathVariable String provider,
+        @RequestBody OAuthCodeRequest request) {
+    // 블로킹 메서드는 리액티브 체인 외부에서만 사용
+    LoginResponse response = oauthService.login(request.code(), provider);
+    return ResponseEntity.ok(response);
+}
+```
+
+#### 레거시 서비스 통합
+```java
+@Service
+public class LegacyUserService {
+    
+    @Autowired
+    private OAuthLoginService oauthService;
+    
+    public UserProfile handleLegacyLogin(String code, String provider) {
+        // 블로킹 호출은 별도 스레드에서 실행됨
+        LoginResponse response = oauthService.login(code, provider);
+        return convertToUserProfile(response);
+    }
 }
 ```
 
 ## 주의사항
 
-### ⚠️ 블로킹 호출 금지
-- 리액티브 메서드에서 `.block()` 호출 금지
-- 컨트롤러에서 `Mono<T>` 직접 반환 권장
+### ⚠️ 리액티브 체인 내 블로킹 금지
+```java
+// ❌ 잘못된 사용: 리액티브 체인 내에서 블로킹
+public Mono<String> badExample(String code) {
+    return someReactiveMono
+            .flatMap(data -> {
+                // 이렇게 하면 안됩니다!
+                OAuthToken token = oauthService.getToken(code); // block() 호출
+                return processToken(token);
+            });
+}
+
+// ✅ 올바른 사용: 완전한 리액티브 체인
+public Mono<String> goodExample(String code) {
+    return someReactiveMono
+            .flatMap(data -> oauthService.getTokenReactive(code) // 리액티브 메서드 사용
+                    .flatMap(this::processToken));
+}
+```
+
+### 📍 블로킹 메서드 사용 원칙
+- **리액티브 체인 외부에서만** 블로킹 메서드 사용
+- **전용 블로킹 엔드포인트** 또는 **레거시 통합**에서만 사용
+- **새로운 코드**에서는 리액티브 메서드 우선 사용
+
+### 🔄 인터페이스 분리
+- `OAuthLoginService`: 리액티브 메서드 + 블로킹 메서드 (하위 호환성)
+- `BlockingOAuthLoginService`: 블로킹 전용 인터페이스 (명시적 분리)
+- 새로운 코드에서는 리액티브 메서드만 사용 권장
 
 ### 📝 에러 처리
 - `BusinessException`을 통한 일관된 에러 처리
 - 원본 예외를 cause로 보존
 - 적절한 HTTP 상태 코드 매핑
+- `onErrorMap()`을 통한 리액티브 에러 변환
 
 ### 🔧 설정 관리
 - WebClient 타임아웃은 전역 설정에서 관리
 - 개별 메서드 레벨 타임아웃 설정 불필요
 - 연결 풀 설정으로 성능 최적화
+- `subscribeOn(Schedulers.boundedElastic())`은 블로킹 래퍼에서만 사용
 
 ## 결론
 

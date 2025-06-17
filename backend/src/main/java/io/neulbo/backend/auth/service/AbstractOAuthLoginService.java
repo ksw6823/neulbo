@@ -40,7 +40,7 @@ public abstract class AbstractOAuthLoginService implements OAuthLoginService {
      * 4. JWT 토큰 생성 및 반환
      */
     @Override
-    @Transactional(isolation = Isolation.READ_COMMITTED)
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
     public LoginResponse login(String code, String provider) {
         // 별도 스레드에서 리액티브 메서드를 블로킹 호출로 변환
         return loginReactive(code, provider)
@@ -52,7 +52,7 @@ public abstract class AbstractOAuthLoginService implements OAuthLoginService {
      * 리액티브 공통 로그인 로직
      */
     @Override
-    @Transactional(isolation = Isolation.READ_COMMITTED)
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
     public Mono<LoginResponse> loginReactive(String code, String provider) {
         return getTokenReactive(code)
                 .flatMap(token -> getUserInfoReactive(token.accessToken())

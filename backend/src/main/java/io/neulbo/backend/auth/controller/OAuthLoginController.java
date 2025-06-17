@@ -11,6 +11,7 @@ import io.neulbo.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
 import java.util.Map;
 import java.util.Optional;
@@ -25,8 +26,35 @@ public class OAuthLoginController {
     private final JwtProvider jwtProvider;
     private final RefreshTokenService refreshTokenService;
 
+    /**
+     * OAuth 로그인 (리액티브 방식 - 권장)
+     */
     @PostMapping("/login/{provider}")
-    public ResponseEntity<LoginResponse> login(
+    public Mono<ResponseEntity<LoginResponse>> login(
+            @PathVariable String provider,
+            @RequestBody OAuthCodeRequest request) {
+        OAuthLoginService service = loginServices.get(provider.toLowerCase());
+        if (service == null) {
+            return Mono.error(new BusinessException(ErrorCode.UNSUPPORTED_OAUTH_PROVIDER));
+        }
+
+        return service.loginReactive(request.code(), provider)
+                .map(ResponseEntity::ok)
+                .onErrorMap(Exception.class, e -> {
+                    if (e instanceof BusinessException) {
+                        return e;
+                    }
+                    return new BusinessException(ErrorCode.OAUTH_TOKEN_REQUEST_FAILED, e);
+                });
+    }
+
+    /**
+     * OAuth 로그인 (블로킹 방식 - 하위 호환성)
+     * 
+     * @deprecated 리액티브 방식 사용을 권장합니다.
+     */
+    @PostMapping("/login/{provider}/blocking")
+    public ResponseEntity<LoginResponse> loginBlocking(
             @PathVariable String provider,
             @RequestBody OAuthCodeRequest request) {
         OAuthLoginService service = loginServices.get(provider.toLowerCase());
@@ -35,29 +63,14 @@ public class OAuthLoginController {
         }
 
         try {
-            OAuthToken token = service.getToken(request.code());
-            OAuthUser userInfo = service.getUserInfo(token.accessToken());
-
-            Optional<User> existingUser = userRepository.findBySocialIdAndProvider(userInfo.id(), provider);
-            boolean isNewUser = existingUser.isEmpty();
-
-            User user = existingUser.orElseGet(() -> userRepository.save(User.builder()
-                    .socialId(userInfo.id())
-                    .email(userInfo.email())
-                    .nickname(userInfo.nickname())
-                    .profileImage(userInfo.profileImage())
-                    .provider(provider)
-                    .build()));
-
-            String accessToken = jwtProvider.createAccessToken(user.getId());
-            String refreshToken = jwtProvider.createRefreshToken(user.getId());
-            refreshTokenService.saveRefreshToken(user.getId(), refreshToken);
-
-            return ResponseEntity.ok(new LoginResponse(accessToken, refreshToken, isNewUser));
-
+            // 블로킹 메서드는 리액티브 체인 외부에서만 사용
+            LoginResponse response = service.login(request.code(), provider);
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            // OAuth 토큰 요청 실패 또는 사용자 정보 요청 실패를 통합 처리
-            throw new BusinessException(ErrorCode.OAUTH_TOKEN_REQUEST_FAILED);
+            if (e instanceof BusinessException) {
+                throw e;
+            }
+            throw new BusinessException(ErrorCode.OAUTH_TOKEN_REQUEST_FAILED, e);
         }
     }
 }

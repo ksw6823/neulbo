@@ -1,5 +1,72 @@
 # 보안 가이드라인
 
+## 🔐 환경변수 보안 관리
+
+### ✅ 환경변수 설정 방법
+
+#### 1. 개발 환경
+```bash
+# 1. env.example을 복사하여 .env 파일 생성
+cp env.example .env
+
+# 2. .env 파일에 실제 값 입력 (절대 커밋하지 말 것!)
+nano .env
+
+# 3. 실제 값 예시 (보안상 실제 값은 다르게 설정)
+JWT_SECRET_KEY=abcdef1234567890abcdef1234567890abcdef12
+DB_PASSWORD=your-actual-database-password
+GOOGLE_CLIENT_SECRET=your-actual-google-client-secret
+```
+
+#### 2. 프로덕션 환경 (AWS Lightsail)
+```bash
+# 환경변수 설정
+export JWT_SECRET_KEY="your-production-jwt-secret"
+export DB_PASSWORD="your-production-db-password"
+export GOOGLE_CLIENT_SECRET="your-production-google-secret"
+
+# 또는 systemd 서비스 파일에서 설정
+Environment=JWT_SECRET_KEY=your-production-jwt-secret
+Environment=DB_PASSWORD=your-production-db-password
+```
+
+### 🚨 절대 하지 말아야 할 것들
+
+#### ❌ 커밋하면 안 되는 파일들
+- `.env` (실제 환경변수 파일)
+- `application-*.properties`에 실제 시크릿 하드코딩
+- AWS 키, 데이터베이스 비밀번호 등
+
+#### ❌ 코드에 하드코딩 금지
+```java
+// ❌ 절대 이렇게 하지 마세요!
+String secret = "actual-secret-key-here";
+String dbPassword = "mypassword123";
+```
+
+#### ✅ 올바른 방법
+```java
+// ✅ 이렇게 하세요!
+@Value("${jwt.secret}")
+private String jwtSecret;
+
+@Value("${spring.datasource.password}")
+private String dbPassword;
+```
+
+### 🔒 JWT Secret Key 생성 방법
+
+```bash
+# 안전한 랜덤 키 생성 (Linux/Mac)
+openssl rand -base64 32
+
+# 또는 Python 사용
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+
+# Windows PowerShell
+[System.Web.Security.Membership]::GeneratePassword(32, 0)
+```
+
 ## AuthTestController 보안 개선사항
 
 ### 🚨 발견된 보안 취약점

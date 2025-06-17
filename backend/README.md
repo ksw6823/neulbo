@@ -89,8 +89,12 @@ docker-compose -f docker-compose.dev.yml logs -f api
 
 ### 인증
 ```bash
-# 소셜 로그인 (구글, 카카오, 네이버)
-POST http://localhost:8080/oauth/login/{provider}
+# 소셜 로그인 (구글, 카카오, 네이버) - 리액티브 방식 (권장)
+POST http://localhost:8080/api/v1/oauth/login/{provider}
+Body: {"code": "OAuth2_인증코드"}
+
+# 소셜 로그인 - 블로킹 방식 (하위 호환성)
+POST http://localhost:8080/api/v1/oauth/login/{provider}/blocking
 Body: {"code": "OAuth2_인증코드"}
 
 # 토큰 갱신
@@ -151,9 +155,12 @@ docker-compose -f docker-compose.dev.yml up -d
 
 플러터 앱에서 사용할 로그인 URL:
 ```dart
-// 개발 환경
-final apiUrl = 'http://localhost:8080/oauth/login/$provider';
+// 개발 환경 - 리액티브 API (권장)
+final apiUrl = 'http://localhost:8080/api/v1/oauth/login/$provider';
 
-// 운영 환경 (나중에)
-final apiUrl = 'https://your-domain.com/api/oauth/login/$provider';
+// 개발 환경 - 블로킹 API (하위 호환성)
+final apiUrlBlocking = 'http://localhost:8080/api/v1/oauth/login/$provider/blocking';
+
+// 운영 환경 (AWS Lightsail)
+final apiUrl = 'https://neulbo1.com/api/v1/oauth/login/$provider';
 ``` 

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.Duration;
 import java.util.Map;
 
 @Service("google")
@@ -59,6 +60,7 @@ public class GoogleLoginService extends AbstractOAuthLoginService {
                                     .map(body -> new BusinessException(ErrorCode.OAUTH_TOKEN_REQUEST_FAILED))
                     )
                     .bodyToMono(Map.class)
+                    .timeout(Duration.ofSeconds(10))
                     .block();
 
             // 응답 결과 null 체크
@@ -140,6 +142,7 @@ public class GoogleLoginService extends AbstractOAuthLoginService {
                                     .map(body -> new BusinessException(ErrorCode.OAUTH_USER_INFO_REQUEST_FAILED))
                     )
                     .bodyToMono(Map.class)
+                    .timeout(Duration.ofSeconds(10))
                     .block();
 
             if (result == null) {

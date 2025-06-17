@@ -12,12 +12,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
+import jakarta.validation.Valid;
 
 import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/oauth")
+@RequestMapping("/api/v1/oauth")
 @RequiredArgsConstructor
 public class OAuthLoginController {
 
@@ -32,7 +33,7 @@ public class OAuthLoginController {
     @PostMapping("/login/{provider}")
     public Mono<ResponseEntity<LoginResponse>> login(
             @PathVariable String provider,
-            @RequestBody OAuthCodeRequest request) {
+            @Valid @RequestBody OAuthCodeRequest request) {
         OAuthLoginService service = loginServices.get(provider.toLowerCase());
         if (service == null) {
             return Mono.error(new BusinessException(ErrorCode.UNSUPPORTED_OAUTH_PROVIDER));
@@ -56,7 +57,7 @@ public class OAuthLoginController {
     @PostMapping("/login/{provider}/blocking")
     public ResponseEntity<LoginResponse> loginBlocking(
             @PathVariable String provider,
-            @RequestBody OAuthCodeRequest request) {
+            @Valid @RequestBody OAuthCodeRequest request) {
         OAuthLoginService service = loginServices.get(provider.toLowerCase());
         if (service == null) {
             throw new BusinessException(ErrorCode.UNSUPPORTED_OAUTH_PROVIDER);

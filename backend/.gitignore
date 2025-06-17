@@ -35,3 +35,40 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# === 보안 관련 파일들 ===
+# 환경 변수 파일들
+.env
+.env.local
+.env.production
+.env.development
+.env.*.local
+
+# 로그 파일
+*.log
+logs/
+
+# 데이터베이스 파일
+*.db
+*.sqlite
+*.sqlite3
+
+# SSL/TLS 인증서
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+
+# AWS 설정 파일
+.aws/
+aws-exports.js
+
+# Docker secrets
+docker-compose.override.yml
+secrets/
+
+# 백업 파일
+*.backup
+*.bak
+*.tmp

@@ -336,4 +336,209 @@ class JwtAuthenticationFilterTest {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         assertThat(authentication).isNull();
     }
+
+    @Test
+    @DisplayName("데이터베이스 역할이 null이고 토큰 역할도 null인 경우 기본 USER 역할 사용")
+    void shouldUseDefaultUserRole_WhenBothDbRoleAndTokenRoleAreNull() throws Exception {
+        // given
+        String token = "valid.jwt.token";
+        Long userId = 1L;
+        
+        User user = User.builder()
+                .id(userId)
+                .provider("google")
+                .socialId("12345")
+                .role(null) // 데이터베이스 역할이 null
+                .build();
+        
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+        when(blacklistService.isBlacklisted(token)).thenReturn(false);
+        when(jwtProvider.getUserIdFromToken(token)).thenReturn(userId);
+        when(jwtProvider.getRolesFromToken(token)).thenReturn(null); // 토큰 역할도 null
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        // when
+        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
+
+        // then
+        verify(blacklistService).isBlacklisted(token);
+        verify(jwtProvider).getUserIdFromToken(token);
+        verify(jwtProvider).getRolesFromToken(token);
+        verify(userRepository).findById(userId);
+        verify(filterChain).doFilter(request, response);
+        
+        // SecurityContext 검증 - 기본 USER 역할이 적용되어야 함
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        assertThat(authentication).isNotNull();
+        assertThat(authentication.getPrincipal()).isInstanceOf(CustomUserDetails.class);
+        
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        assertThat(userDetails.getUserId()).isEqualTo(userId);
+        assertThat(userDetails.getProvider()).isEqualTo("google");
+        assertThat(userDetails.getAuthorities()).hasSize(1);
+        assertThat(userDetails.getAuthorities().iterator().next().getAuthority()).isEqualTo("ROLE_USER");
+    }
+
+    @Test
+    @DisplayName("데이터베이스 역할이 빈 문자열이고 토큰 역할이 빈 리스트인 경우 기본 USER 역할 사용")
+    void shouldUseDefaultUserRole_WhenDbRoleIsEmptyAndTokenRoleIsEmptyList() throws Exception {
+        // given
+        String token = "valid.jwt.token";
+        Long userId = 1L;
+        
+        User user = User.builder()
+                .id(userId)
+                .provider("kakao")
+                .socialId("67890")
+                .role("   ") // 데이터베이스 역할이 공백만 있음
+                .build();
+        
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+        when(blacklistService.isBlacklisted(token)).thenReturn(false);
+        when(jwtProvider.getUserIdFromToken(token)).thenReturn(userId);
+        when(jwtProvider.getRolesFromToken(token)).thenReturn(List.of()); // 토큰 역할이 빈 리스트
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        // when
+        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
+
+        // then
+        verify(blacklistService).isBlacklisted(token);
+        verify(jwtProvider).getUserIdFromToken(token);
+        verify(jwtProvider).getRolesFromToken(token);
+        verify(userRepository).findById(userId);
+        verify(filterChain).doFilter(request, response);
+        
+        // SecurityContext 검증 - 기본 USER 역할이 적용되어야 함
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        assertThat(authentication).isNotNull();
+        assertThat(authentication.getPrincipal()).isInstanceOf(CustomUserDetails.class);
+        
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        assertThat(userDetails.getUserId()).isEqualTo(userId);
+        assertThat(userDetails.getProvider()).isEqualTo("kakao");
+        assertThat(userDetails.getAuthorities()).hasSize(1);
+        assertThat(userDetails.getAuthorities().iterator().next().getAuthority()).isEqualTo("ROLE_USER");
+    }
+
+    @Test
+    @DisplayName("토큰 역할에 null과 빈 문자열이 포함된 경우 유효한 역할만 사용")
+    void shouldUseOnlyValidRoles_WhenTokenRolesContainNullAndEmpty() throws Exception {
+        // given
+        String token = "valid.jwt.token";
+        Long userId = 1L;
+        List<String> tokenRoles = List.of("ADMIN", null, "", "  ", "USER"); // null, 빈 문자열, 공백 포함
+        
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+        when(blacklistService.isBlacklisted(token)).thenReturn(false);
+        when(jwtProvider.getUserIdFromToken(token)).thenReturn(userId);
+        when(jwtProvider.getRolesFromToken(token)).thenReturn(tokenRoles);
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        // when
+        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
+
+        // then
+        verify(blacklistService).isBlacklisted(token);
+        verify(jwtProvider).getUserIdFromToken(token);
+        verify(jwtProvider).getRolesFromToken(token);
+        verify(userRepository).findById(userId);
+        verify(filterChain).doFilter(request, response);
+        
+        // SecurityContext 검증 - 유효한 역할들만 적용되어야 함
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        assertThat(authentication).isNotNull();
+        assertThat(authentication.getPrincipal()).isInstanceOf(CustomUserDetails.class);
+        
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        assertThat(userDetails.getUserId()).isEqualTo(userId);
+        assertThat(userDetails.getProvider()).isEqualTo("unknown");
+        assertThat(userDetails.getAuthorities()).hasSize(2); // ADMIN, USER만 유효
+        
+        // 권한 목록 검증
+        List<String> authorities = userDetails.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .toList();
+        assertThat(authorities).containsExactlyInAnyOrder("ROLE_ADMIN", "ROLE_USER");
+    }
+
+    @Test
+    @DisplayName("토큰 역할이 모두 무효한 경우 기본 USER 역할 사용")
+    void shouldUseDefaultUserRole_WhenAllTokenRolesAreInvalid() throws Exception {
+        // given
+        String token = "valid.jwt.token";
+        Long userId = 1L;
+        List<String> tokenRoles = List.of(null, "", "   "); // 모든 역할이 무효
+        
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+        when(blacklistService.isBlacklisted(token)).thenReturn(false);
+        when(jwtProvider.getUserIdFromToken(token)).thenReturn(userId);
+        when(jwtProvider.getRolesFromToken(token)).thenReturn(tokenRoles);
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        // when
+        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
+
+        // then
+        verify(blacklistService).isBlacklisted(token);
+        verify(jwtProvider).getUserIdFromToken(token);
+        verify(jwtProvider).getRolesFromToken(token);
+        verify(userRepository).findById(userId);
+        verify(filterChain).doFilter(request, response);
+        
+        // SecurityContext 검증 - 기본 USER 역할이 적용되어야 함
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        assertThat(authentication).isNotNull();
+        assertThat(authentication.getPrincipal()).isInstanceOf(CustomUserDetails.class);
+        
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        assertThat(userDetails.getUserId()).isEqualTo(userId);
+        assertThat(userDetails.getProvider()).isEqualTo("unknown");
+        assertThat(userDetails.getAuthorities()).hasSize(1);
+        assertThat(userDetails.getAuthorities().iterator().next().getAuthority()).isEqualTo("ROLE_USER");
+    }
+
+    @Test
+    @DisplayName("데이터베이스 역할에 앞뒤 공백이 있는 경우 trim 처리")
+    void shouldTrimDatabaseRole_WhenRoleHasWhitespace() throws Exception {
+        // given
+        String token = "valid.jwt.token";
+        Long userId = 1L;
+        List<String> tokenRoles = List.of("USER");
+        String dbRole = "  ADMIN  "; // 앞뒤 공백 있음
+        
+        User user = User.builder()
+                .id(userId)
+                .provider("naver")
+                .socialId("54321")
+                .role(dbRole)
+                .build();
+        
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+        when(blacklistService.isBlacklisted(token)).thenReturn(false);
+        when(jwtProvider.getUserIdFromToken(token)).thenReturn(userId);
+        when(jwtProvider.getRolesFromToken(token)).thenReturn(tokenRoles);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        // when
+        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
+
+        // then
+        verify(blacklistService).isBlacklisted(token);
+        verify(jwtProvider).getUserIdFromToken(token);
+        verify(jwtProvider).getRolesFromToken(token);
+        verify(userRepository).findById(userId);
+        verify(filterChain).doFilter(request, response);
+        
+        // SecurityContext 검증 - trim된 데이터베이스 역할이 적용되어야 함
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        assertThat(authentication).isNotNull();
+        assertThat(authentication.getPrincipal()).isInstanceOf(CustomUserDetails.class);
+        
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        assertThat(userDetails.getUserId()).isEqualTo(userId);
+        assertThat(userDetails.getProvider()).isEqualTo("naver");
+        assertThat(userDetails.getAuthorities()).hasSize(1);
+        assertThat(userDetails.getAuthorities().iterator().next().getAuthority()).isEqualTo("ROLE_ADMIN");
+    }
 } 

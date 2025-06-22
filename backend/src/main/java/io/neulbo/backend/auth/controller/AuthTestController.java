@@ -1,8 +1,7 @@
 package io.neulbo.backend.auth.controller;
 
 import io.neulbo.backend.auth.util.SecurityUtils;
-import io.neulbo.backend.user.domain.User;
-import io.neulbo.backend.user.repository.UserRepository;
+import io.neulbo.backend.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -25,7 +24,7 @@ import java.util.Map;
 @Profile("local") // 개발 환경(local)에서만 활성화
 public class AuthTestController {
 
-    private final UserRepository userRepository;
+    private final UserService userService;
 
     /**
      * 인증된 사용자만 접근 가능한 엔드포인트
@@ -95,49 +94,41 @@ public class AuthTestController {
             ));
         }
 
-        // 보안 강화: ADMIN 역할 할당 차단
-        if ("ADMIN".equalsIgnoreCase(role)) {
-            log.warn("ADMIN role assignment blocked for user ID: {}", userId);
+        try {
+            // 서비스 계층을 통해 역할 변경 처리 (모든 검증 로직은 서비스에서 처리)
+            boolean roleChanged = userService.changeUserRole(userId, role);
+            
+            if (!roleChanged) {
+                // 이미 동일한 역할인 경우
+                return ResponseEntity.ok(Map.of(
+                        "message", "이미 USER 역할입니다",
+                        "currentRole", "USER",
+                        "note", "변경이 필요하지 않습니다"
+                ));
+            }
+            
+            log.info("Role successfully changed to {} for user ID: {}", role, userId);
+        } catch (IllegalArgumentException e) {
+            log.error("Role change failed - Invalid argument: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", e.getMessage()
+            ));
+        } catch (SecurityException e) {
+            log.warn("Role change blocked for security reasons: {}", e.getMessage());
             return ResponseEntity.status(403).body(Map.of(
-                    "error", "보안상의 이유로 ADMIN 역할은 할당할 수 없습니다",
-                    "reason", "권한 상승 공격 방지"
+                    "error", e.getMessage(),
+                    "reason", "보안 정책 위반"
+            ));
+        } catch (Exception e) {
+            log.error("Role change failed with unexpected error: {}", e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of(
+                    "error", "역할 변경 처리 중 오류가 발생했습니다"
             ));
         }
-
-        // 허용된 역할만 설정 가능 (USER만 허용)
-        if (!"USER".equalsIgnoreCase(role)) {
-            log.warn("Invalid role assignment attempt: {} for user ID: {}", role, userId);
-            return ResponseEntity.badRequest().body(Map.of(
-                    "error", "허용되지 않은 역할입니다. USER만 가능합니다",
-                    "allowedRoles", "USER"
-            ));
-        }
-
-        User user = userRepository.findById(userId).orElse(null);
-        if (user == null) {
-            log.error("User not found for role change - User ID: {}", userId);
-            return ResponseEntity.badRequest().body(Map.of(
-                    "error", "사용자를 찾을 수 없습니다"
-            ));
-        }
-
-        // 현재 역할과 동일한 경우 변경하지 않음
-        if ("USER".equals(user.getRole())) {
-            log.info("Role change skipped - User {} already has USER role", userId);
-            return ResponseEntity.ok(Map.of(
-                    "message", "이미 USER 역할입니다",
-                    "currentRole", "USER",
-                    "note", "변경이 필요하지 않습니다"
-            ));
-        }
-
-        // 역할 변경 (USER로만 제한)
-        userRepository.updateUserRole(userId, "USER");
-        log.info("Role successfully changed to USER for user ID: {}", userId);
 
         return ResponseEntity.ok(Map.of(
-                "message", "역할이 USER로 변경되었습니다",
-                "newRole", "USER",
+                "message", "역할이 " + role.toUpperCase() + "로 변경되었습니다",
+                "newRole", role.toUpperCase(),
                 "note", "새 토큰 발급을 위해 다시 로그인해주세요"
         ));
     }

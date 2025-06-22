@@ -71,10 +71,21 @@ public Mono<OAuthToken> getTokenReactive(String code) {
                         statusCode, truncateBody(body)))
                 .map(body -> new BusinessException(
                         String.format("Request failed with status %d: %s", 
-                                statusCode, truncateBody(body, 100)),
+                                statusCode, truncateBody(body)),
                         ErrorCode.OAUTH_TOKEN_REQUEST_FAILED));
     }
 )
+
+// 응답 본문 안전 자르기 헬퍼 메서드
+private String truncateBody(String body) {
+    return truncateBody(body, 500); // 기본 최대 길이 500자
+}
+
+private String truncateBody(String body, int maxLength) {
+    if (body == null) return "null";
+    if (body.length() <= maxLength) return body;
+    return body.substring(0, maxLength) + "...";
+}
 ```
 
 ### 2. 하위 호환성 유지

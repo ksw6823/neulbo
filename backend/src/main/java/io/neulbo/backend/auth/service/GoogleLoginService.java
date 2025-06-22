@@ -74,19 +74,12 @@ public class GoogleLoginService extends AbstractOAuthLoginService {
                             int statusCode = response.statusCode().value();
                             return response.bodyToMono(String.class)
                                     .doOnNext(body -> {
-                                        // 응답 본문을 안전하게 자르기 (최대 500자)
-                                        String truncatedBody = body != null && body.length() > 500 
-                                                ? body.substring(0, 500) + "..." 
-                                                : body;
                                         log.error("Google token request failed - Status: {}, Response: {}", 
-                                                statusCode, truncatedBody);
+                                                statusCode, truncateBody(body));
                                     })
                                     .map(body -> new BusinessException(
                                             String.format("Google token request failed with status %d: %s", 
-                                                    statusCode, 
-                                                    body != null && body.length() > 100 
-                                                            ? body.substring(0, 100) + "..." 
-                                                            : body),
+                                                    statusCode, truncateBody(body, 100)),
                                             ErrorCode.OAUTH_TOKEN_REQUEST_FAILED));
                         }
                 )
@@ -117,20 +110,13 @@ public class GoogleLoginService extends AbstractOAuthLoginService {
                         response -> {
                             int statusCode = response.statusCode().value();
                             return response.bodyToMono(String.class)
-                                    .doOnNext(body -> {
-                                        // 응답 본문을 안전하게 자르기 (최대 500자)
-                                        String truncatedBody = body != null && body.length() > 500 
-                                                ? body.substring(0, 500) + "..." 
-                                                : body;
+                                                                        .doOnNext(body -> {
                                         log.error("Google user info request failed - Status: {}, Response: {}", 
-                                                statusCode, truncatedBody);
+                                                statusCode, truncateBody(body));
                                     })
                                     .map(body -> new BusinessException(
                                             String.format("Google user info request failed with status %d: %s", 
-                                                    statusCode, 
-                                                    body != null && body.length() > 100 
-                                                            ? body.substring(0, 100) + "..." 
-                                                            : body),
+                                                    statusCode, truncateBody(body, 100)),
                                             ErrorCode.OAUTH_USER_INFO_REQUEST_FAILED));
                         }
                 )

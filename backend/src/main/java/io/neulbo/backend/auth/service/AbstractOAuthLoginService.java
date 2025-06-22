@@ -180,6 +180,30 @@ public abstract class AbstractOAuthLoginService implements OAuthLoginService {
         });
     }
 
+    /**
+     * 응답 본문을 안전하게 자르기 위한 헬퍼 메서드
+     * 로그에 포함될 응답 본문이 너무 길어지는 것을 방지합니다.
+     * 
+     * @param body 자를 응답 본문
+     * @return 기본 최대 길이(500자)로 잘린 응답 본문
+     */
+    protected String truncateBody(String body) {
+        return truncateBody(body, 500);
+    }
+
+    /**
+     * 응답 본문을 지정된 길이로 자르기 위한 헬퍼 메서드
+     * 
+     * @param body 자를 응답 본문
+     * @param maxLength 최대 길이
+     * @return 지정된 길이로 잘린 응답 본문
+     */
+    protected String truncateBody(String body, int maxLength) {
+        if (body == null) return "null";
+        if (body.length() <= maxLength) return body;
+        return body.substring(0, maxLength) + "...";
+    }
+
     // 각 구현체에서 제공자별 로직을 구현해야 하는 추상 메서드들
     @Override
     public abstract OAuthToken getToken(String code);

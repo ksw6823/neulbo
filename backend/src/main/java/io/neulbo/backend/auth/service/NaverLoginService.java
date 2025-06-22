@@ -74,19 +74,12 @@ public class NaverLoginService extends AbstractOAuthLoginService {
                             int statusCode = response.statusCode().value();
                             return response.bodyToMono(String.class)
                                     .doOnNext(body -> {
-                                        // 응답 본문을 안전하게 자르기 (최대 500자)
-                                        String truncatedBody = body != null && body.length() > 500 
-                                                ? body.substring(0, 500) + "..." 
-                                                : body;
                                         log.error("Naver token request failed - Status: {}, Response: {}", 
-                                                statusCode, truncatedBody);
+                                                statusCode, truncateBody(body));
                                     })
                                     .map(body -> new BusinessException(
                                             String.format("Naver token request failed with status %d: %s", 
-                                                    statusCode, 
-                                                    body != null && body.length() > 100 
-                                                            ? body.substring(0, 100) + "..." 
-                                                            : body),
+                                                    statusCode, truncateBody(body, 100)),
                                             ErrorCode.OAUTH_TOKEN_REQUEST_FAILED));
                         }
                 )
@@ -118,19 +111,12 @@ public class NaverLoginService extends AbstractOAuthLoginService {
                             int statusCode = errorResponse.statusCode().value();
                             return errorResponse.bodyToMono(String.class)
                                     .doOnNext(body -> {
-                                        // 응답 본문을 안전하게 자르기 (최대 500자)
-                                        String truncatedBody = body != null && body.length() > 500 
-                                                ? body.substring(0, 500) + "..." 
-                                                : body;
                                         log.error("Naver user info request failed - Status: {}, Response: {}", 
-                                                statusCode, truncatedBody);
+                                                statusCode, truncateBody(body));
                                     })
                                     .map(body -> new BusinessException(
                                             String.format("Naver user info request failed with status %d: %s", 
-                                                    statusCode, 
-                                                    body != null && body.length() > 100 
-                                                            ? body.substring(0, 100) + "..." 
-                                                            : body),
+                                                    statusCode, truncateBody(body, 100)),
                                             ErrorCode.OAUTH_USER_INFO_REQUEST_FAILED));
                         }
                 )

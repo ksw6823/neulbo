@@ -30,56 +30,15 @@ vim .env
 # - OAuth2 클라이언트 ID/Secret들
 ```
 
-### 3. 환경별 프로파일 설정
+### 3. 애플리케이션 실행
 
-애플리케이션은 다음 3가지 프로파일을 지원합니다:
-
-#### 🔧 로컬 개발 환경 (`local`)
-- **로깅**: DEBUG 레벨로 상세한 디버깅 정보 제공
-- **보안**: 개발 편의를 위해 에러 스택트레이스 표시
-- **API 문서**: Swagger UI 활성화
-- **JPA**: SQL 쿼리 로그 및 포맷팅 활성화
-
-```bash
-# 로컬 개발 환경으로 실행
-./gradlew bootRun --args='--spring.profiles.active=local'
-
-# 또는 Docker에서
-docker-compose -f docker-compose.dev.yml up -d
-```
-
-#### 📊 기본 환경 (프로파일 없음)
-- **로깅**: INFO 레벨로 적당한 정보 제공  
-- **보안**: 프로덕션 안전을 고려한 설정
-- **성능**: 균형 잡힌 설정
-
-```bash
-# 기본 프로파일로 실행
-./gradlew bootRun
-```
-
-#### 🚀 프로덕션 환경 (`production`)
-- **로깅**: WARN 레벨로 민감한 정보 노출 방지
-- **보안**: 에러 정보 숨김, API 문서 비활성화  
-- **성능**: 최적화된 데이터베이스 연결 설정
-- **모니터링**: 최소한의 Actuator 엔드포인트만 노출
-
-```bash
-# 프로덕션 환경으로 실행
-./gradlew bootRun --args='--spring.profiles.active=production'
-
-# 또는 AWS 배포 시
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-### 4. 애플리케이션 실행
 ```bash
 # 자동 배포 스크립트 실행
 chmod +x deploy.sh
 ./deploy.sh
 ```
 
-### 5. 모니터링
+### 4. 모니터링
 ```bash
 # 서비스 상태 확인
 chmod +x monitor.sh

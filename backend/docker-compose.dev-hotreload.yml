@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # API 서버 (개발용 - 볼륨 마운트)
+  api:
+    build: 
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - DB_URL=jdbc:postgresql://postgres:5432/neulbo
+      - DB_USERNAME=neulbo
+      - DB_PASSWORD=password123
+      - REDIS_HOST=redis
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - KAKAO_CLIENT_ID=${KAKAO_CLIENT_ID}
+      - KAKAO_CLIENT_SECRET=${KAKAO_CLIENT_SECRET}
+      - NAVER_CLIENT_ID=${NAVER_CLIENT_ID}
+      - NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET}
+    volumes:
+      - ./build/libs:/app/libs  # JAR 파일 실시간 반영
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - neulbo-network
+    restart: unless-stopped
+
+  # PostgreSQL
+  postgres:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=neulbo
+      - POSTGRES_USER=neulbo
+      - POSTGRES_PASSWORD=password123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - neulbo-network
+    restart: unless-stopped
+
+  # Redis
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - neulbo-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  neulbo-network:
+    driver: bridge 

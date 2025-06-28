@@ -31,6 +31,7 @@ vim .env
 ```
 
 ### 3. 애플리케이션 실행
+
 ```bash
 # 자동 배포 스크립트 실행
 chmod +x deploy.sh

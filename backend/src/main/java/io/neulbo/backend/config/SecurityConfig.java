@@ -39,7 +39,7 @@ public class SecurityConfig {
 
         return http.build();
     }
-
+    
     /**
      * CORS 설정 - Flutter 앱과의 통신을 위한 설정
      */

@@ -1,0 +1,16 @@
+[Unit]
+Description=Neulbo Backend API Server
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+WorkingDirectory=/opt/neulbo/backend
+ExecStart=/usr/bin/docker-compose -f docker-compose.prod.yml up -d
+ExecStop=/usr/bin/docker-compose -f docker-compose.prod.yml down
+User=neulbo
+Group=neulbo
+
+[Install]
+WantedBy=multi-user.target 

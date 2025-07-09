@@ -1,0 +1,25 @@
+# 개발환경용 Dockerfile (핫리로드 지원)
+FROM openjdk:21-jdk-slim
+
+WORKDIR /app
+
+# 개발 도구 설치
+RUN apt-get update && apt-get install -y curl wget && rm -rf /var/lib/apt/lists/*
+
+# 애플리케이션 사용자 생성
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# 개발용 JVM 옵션 (디버깅 활성화)
+ENV JAVA_OPTS="-Xms256m -Xmx512m -XX:+UseG1GC -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+
+# libs 디렉토리 생성 및 권한 설정
+RUN mkdir -p /app/libs && chown -R appuser:appuser /app
+
+# 사용자 전환
+USER appuser
+
+# 포트 노출 (애플리케이션 + 디버깅)
+EXPOSE 8080 5005
+
+# 핫리로드를 위한 스크립트
+ENTRYPOINT ["sh", "-c", "while [ ! -f /app/libs/*.jar ]; do echo 'JAR 파일 대기 중...'; sleep 2; done; java $JAVA_OPTS -jar /app/libs/*.jar"] 

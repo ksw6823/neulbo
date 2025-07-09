@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 echo 🚀 Neulbo Backend (AWS RDS) 배포 시작...
 
 REM 환경변수 파일 확인
@@ -11,7 +12,7 @@ if not exist .env (
 echo 🔨 Gradle 빌드 중...
 call gradlew.bat clean bootJar
 
-if %errorlevel% neq 0 (
+if !errorlevel! neq 0 (
     echo ❌ Gradle 빌드 실패!
     pause
     exit /b 1

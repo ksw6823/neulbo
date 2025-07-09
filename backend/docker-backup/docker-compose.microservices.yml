@@ -1,0 +1,219 @@
+version: '3.8'
+
+services:
+  # 1. Reverse Proxy (Nginx)
+  reverse-proxy:
+    image: nginx:alpine
+    container_name: neulbo-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - backend-api
+      - ml-api
+      - llm-api
+    networks:
+      - neulbo-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 2. Backend API Server (Spring Boot)
+  backend-api:
+    build: .
+    container_name: neulbo-backend
+    environment:
+      - SPRING_PROFILES_ACTIVE=production
+      - DB_URL=jdbc:postgresql://postgres:5432/neulbo
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - KAKAO_CLIENT_ID=${KAKAO_CLIENT_ID}
+      - KAKAO_CLIENT_SECRET=${KAKAO_CLIENT_SECRET}
+      - NAVER_CLIENT_ID=${NAVER_CLIENT_ID}
+      - NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET}
+      # 내부 서비스 통신 URL
+      - ML_API_URL=http://ml-api:8081
+      - LLM_API_URL=http://llm-api:8082
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - neulbo-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 3. ML API Server
+  ml-api:
+    build:
+      context: ./ml-server
+      dockerfile: Dockerfile
+    container_name: neulbo-ml
+    environment:
+      - ML_MODEL_PATH=/app/models
+      - BACKEND_API_URL=http://backend-api:8080
+      - REDIS_HOST=redis
+    volumes:
+      - ml_models:/app/models
+      - ml_data:/app/data
+    networks:
+      - neulbo-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G          # ML 모델을 위한 메모리
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 4. LLM API Server
+  llm-api:
+    build:
+      context: ./llm-server
+      dockerfile: Dockerfile
+    container_name: neulbo-llm
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - BACKEND_API_URL=http://backend-api:8080
+      - REDIS_HOST=redis
+    networks:
+      - neulbo-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 5. PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: neulbo-db
+    environment:
+      - POSTGRES_DB=neulbo
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/init:/docker-entrypoint-initdb.d
+    networks:
+      - neulbo-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # 6. Redis Cache
+  redis:
+    image: redis:alpine
+    container_name: neulbo-cache
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - neulbo-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # 7. Monitoring (Optional)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: neulbo-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - neulbo-network
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+
+volumes:
+  postgres_data:
+  ml_models:
+  ml_data:
+  prometheus_data:
+
+networks:
+  neulbo-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16 

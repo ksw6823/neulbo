@@ -7,7 +7,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_PROFILES_ACTIVE=production
       - DB_URL=${DB_URL}  # AWS RDS 엔드포인트
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
@@ -30,11 +30,10 @@ services:
       timeout: 10s
       retries: 3
 
-  # Redis (로컬)
+  # Redis (로컬) - 내부 네트워크만 사용
   redis:
     image: redis:alpine
-    ports:
-      - "6379:6379"
+    # 프로덕션에서는 포트 외부 노출 안함 (보안)
     networks:
       - neulbo-network
     restart: unless-stopped

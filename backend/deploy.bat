@@ -18,14 +18,14 @@ if %errorlevel% neq 0 (
 )
 
 echo 🐳 Docker Compose로 서비스 시작 중...
-docker-compose -f docker-compose.dev.yml down
-docker-compose -f docker-compose.dev.yml up -d --build
+docker-compose down
+docker-compose up -d --build
 
 echo ⏳ 서비스 시작 대기 중...
 timeout /t 30 /nobreak > nul
 
 echo 🔍 서비스 상태 확인 중...
-docker-compose -f docker-compose.dev.yml ps
+docker-compose ps
 
 echo 🩺 헬스체크 실행 중...
 for /l %%i in (1,1,5) do (
@@ -43,7 +43,7 @@ for /l %%i in (1,1,5) do (
         echo    - 카카오 로그인: POST http://localhost:8080/oauth/login/kakao
         echo    - 네이버 로그인: POST http://localhost:8080/oauth/login/naver
         echo.
-        echo 📊 로그 확인: docker-compose -f docker-compose.dev.yml logs -f api
+        echo 📊 로그 확인: docker-compose logs -f api
         pause
         exit /b 0
     )
@@ -52,6 +52,6 @@ for /l %%i in (1,1,5) do (
 )
 
 echo ❌ API 서버가 시작되지 않았습니다. 로그를 확인해주세요:
-echo    docker-compose -f docker-compose.dev.yml logs api
+echo    docker-compose logs api
 pause
 exit /b 1 

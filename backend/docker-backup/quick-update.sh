@@ -21,4 +21,5 @@ if curl -f http://localhost:8080/actuator/health > /dev/null 2>&1; then
     echo "✅ 빠른 업데이트 완료!"
 else
     echo "❌ 서비스 시작 실패, 로그 확인: docker-compose -f docker-compose.dev.yml logs api"
+    exit 1
 fi 

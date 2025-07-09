@@ -8,11 +8,12 @@ services:
       dockerfile: Dockerfile.dev
     ports:
       - "8080:8080"
+      - "5005:5005"  # 디버깅 포트
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - DB_URL=jdbc:postgresql://postgres:5432/neulbo
-      - DB_USERNAME=neulbo
-      - DB_PASSWORD=password123
+      - SPRING_PROFILES_ACTIVE=local
+      - DB_URL=${DB_URL:-jdbc:postgresql://postgres:5432/neulbo}
+      - DB_USERNAME=${DB_USERNAME:-neulbo}
+      - DB_PASSWORD=${DB_PASSWORD:-password123}
       - REDIS_HOST=redis
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
@@ -36,9 +37,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_DB=neulbo
-      - POSTGRES_USER=neulbo
-      - POSTGRES_PASSWORD=password123
+      - POSTGRES_DB=${POSTGRES_DB:-neulbo}
+      - POSTGRES_USER=${DB_USERNAME:-neulbo}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-password123}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:

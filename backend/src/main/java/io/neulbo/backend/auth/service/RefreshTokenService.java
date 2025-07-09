@@ -5,6 +5,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -15,16 +16,16 @@ public class RefreshTokenService {
     private static final String PREFIX = "refresh:";
     private static final Duration TTL = Duration.ofDays(7);
 
-    public void saveRefreshToken(Long userId, String refreshToken) {
-        redisTemplate.opsForValue().set(PREFIX + userId, refreshToken, TTL);
+    public void saveRefreshToken(UUID userId, String refreshToken) {
+        redisTemplate.opsForValue().set(PREFIX + userId.toString(), refreshToken, TTL);
     }
 
-    public boolean isValidRefreshToken(Long userId, String refreshToken) {
-        String stored = redisTemplate.opsForValue().get(PREFIX + userId);
+    public boolean isValidRefreshToken(UUID userId, String refreshToken) {
+        String stored = redisTemplate.opsForValue().get(PREFIX + userId.toString());
         return stored != null && stored.equals(refreshToken);
     }
 
-    public void deleteRefreshToken(Long userId) {
-        redisTemplate.delete(PREFIX + userId);
+    public void deleteRefreshToken(UUID userId) {
+        redisTemplate.delete(PREFIX + userId.toString());
     }
 }

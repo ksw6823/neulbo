@@ -7,11 +7,12 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_PROFILES_ACTIVE=production
       - DB_URL=${DB_URL}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
       - REDIS_HOST=redis
+      - SERVER_PORT=8080
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
@@ -27,11 +28,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1G
-          cpus: '0.5'
+          memory: 2G          # Spring Boot + JVM 힙 고려
+          cpus: '1.0'         # CPU 여유 확보
         reservations:
-          memory: 512M
-          cpus: '0.25'
+          memory: 1G          # 안정적인 최소 메모리
+          cpus: '0.5'
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
       interval: 30s
@@ -43,12 +44,11 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Redis (메모리 최적화)
+  # Redis (메모리 최적화) - 내부 네트워크만 사용
   redis:
     image: redis:alpine
     command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
-    ports:
-      - "6379:6379"
+    # 프로덕션에서는 포트 외부 노출 안함 (보안)
     networks:
       - neulbo-network
     restart: unless-stopped

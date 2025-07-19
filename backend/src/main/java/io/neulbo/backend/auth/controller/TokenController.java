@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/auth")
@@ -27,7 +28,7 @@ public class TokenController {
         }
 
         String refreshToken = refreshHeader.substring(7);
-        Long userId;
+        UUID userId;
 
         try {
             userId = jwtProvider.getUserIdFromToken(refreshToken);
@@ -55,7 +56,7 @@ public class TokenController {
 
         try {
             DecodedJWT decoded = jwtProvider.decode(accessToken);
-            Long userId = Long.valueOf(decoded.getSubject());
+            UUID userId = UUID.fromString(decoded.getSubject());
 
             refreshTokenService.deleteRefreshToken(userId);
 

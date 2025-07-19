@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.Date;
-import java.util.List;
+import java.util.UUID;
 
 @Component
 public class JwtProvider {
@@ -26,46 +26,30 @@ public class JwtProvider {
     }
 
     // 주어진 사용자 ID를 기반으로 30분 동안 유효한 액세스 토큰을 생성
-    public String createAccessToken(Long userId) {
-        return createAccessToken(userId, List.of("USER"));
-    }
-
-    // 주어진 사용자 ID와 권한을 기반으로 30분 동안 유효한 액세스 토큰을 생성
-    public String createAccessToken(Long userId, List<String> roles) {
+    public String createAccessToken(UUID userId) {
         return JWT.create()
-                .withSubject(String.valueOf(userId))
-                .withClaim("roles", roles)
+                .withSubject(userId.toString())
                 .withIssuedAt(new Date())
                 .withExpiresAt(new Date(System.currentTimeMillis() + ACCESS_TOKEN_VALIDITY))
                 .sign(Algorithm.HMAC256(secret));
     }
 
     // 주어진 사용자 ID를 기반으로 7일 동안 유효한 리프레시 토큰을 생성
-    public String createRefreshToken(Long userId) {
+    public String createRefreshToken(UUID userId) {
         return JWT.create()
-                .withSubject(String.valueOf(userId))
+                .withSubject(userId.toString())
                 .withIssuedAt(new Date())
                 .withExpiresAt(new Date(System.currentTimeMillis() + REFRESH_TOKEN_VALIDITY))
                 .sign(Algorithm.HMAC256(secret));
     }
 
     // 토큰에서 userId(subject)를 추출
-    public Long getUserIdFromToken(String token) {
+    public UUID getUserIdFromToken(String token) {
         DecodedJWT decodedJWT = JWT.require(Algorithm.HMAC256(secret))
                 .build()
                 .verify(token);
 
-        return Long.valueOf(decodedJWT.getSubject());
-    }
-
-    // 토큰에서 권한 정보를 추출
-    public List<String> getRolesFromToken(String token) {
-        DecodedJWT decodedJWT = JWT.require(Algorithm.HMAC256(secret))
-                .build()
-                .verify(token);
-
-        List<String> roles = decodedJWT.getClaim("roles").asList(String.class);
-        return roles != null ? roles : List.of("USER"); // 기본값으로 USER 권한 반환
+        return UUID.fromString(decodedJWT.getSubject());
     }
 
     // 주어진 토큰을 디코딩하고 검증 (만료 시각 등 추출용)

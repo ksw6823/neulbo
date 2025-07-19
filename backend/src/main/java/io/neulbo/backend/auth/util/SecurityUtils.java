@@ -4,6 +4,8 @@ import io.neulbo.backend.auth.dto.CustomUserDetails;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.util.UUID;
+
 /**
  * 현재 인증된 사용자 정보에 접근하는 유틸리티 클래스
  */
@@ -14,7 +16,7 @@ public class SecurityUtils {
      * 
      * @return 현재 사용자의 ID, 인증되지 않은 경우 null
      */
-    public static Long getCurrentUserId() {
+    public static UUID getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof CustomUserDetails) {
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();

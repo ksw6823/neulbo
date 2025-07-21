@@ -39,6 +39,16 @@ public class SecurityUtils {
     }
 
     /**
+     * 현재 인증된 사용자의 OAuth 제공자를 반환합니다.
+     * 
+     * @return 현재 사용자의 OAuth 제공자, 인증되지 않은 경우 null
+     */
+    public static String getCurrentUserProvider() {
+        CustomUserDetails userDetails = getCurrentUserDetails();
+        return userDetails != null ? userDetails.getProvider() : null;
+    }
+
+    /**
      * 현재 사용자가 인증되었는지 확인합니다.
      * 
      * @return 인증된 경우 true, 그렇지 않으면 false
@@ -48,15 +58,5 @@ public class SecurityUtils {
         return authentication != null && 
                authentication.isAuthenticated() && 
                authentication.getPrincipal() instanceof CustomUserDetails;
-    }
-
-    /**
-     * 현재 사용자의 OAuth 제공자를 반환합니다.
-     * 
-     * @return OAuth 제공자명, 인증되지 않은 경우 null
-     */
-    public static String getCurrentUserProvider() {
-        CustomUserDetails userDetails = getCurrentUserDetails();
-        return userDetails != null ? userDetails.getProvider() : null;
     }
 } 

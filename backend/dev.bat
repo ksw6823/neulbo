@@ -1,5 +1,6 @@
 @echo off
-echo 🚀 Neulbo Backend 개발 환경 배포 시작...
+setlocal enabledelayedexpansion
+echo 🚀 Neulbo Backend 로컬 개발 환경 시작...
 
 REM 환경변수 파일 확인
 if not exist .env (
@@ -17,15 +18,15 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo 🐳 Docker Compose로 서비스 시작 중 (AWS RDS 사용)...
-docker-compose -f docker-compose.prod.yml down
-docker-compose -f docker-compose.prod.yml up -d --build
+echo 🐳 Docker Compose로 로컬 서비스 시작 중...
+docker-compose down
+docker-compose up -d --build
 
 echo ⏳ 서비스 시작 대기 중...
 timeout /t 30 /nobreak > nul
 
 echo 🔍 서비스 상태 확인 중...
-docker-compose -f docker-compose.prod.yml ps
+docker-compose ps
 
 echo 🩺 헬스체크 실행 중...
 for /l %%i in (1,1,5) do (
@@ -35,15 +36,15 @@ for /l %%i in (1,1,5) do (
         echo.
         echo 📋 서비스 정보:
         echo    - API 서버: http://localhost:8080
-        echo    - PostgreSQL: AWS RDS
+        echo    - PostgreSQL: localhost:5432
         echo    - Redis: localhost:6379
         echo.
         echo 🔗 테스트 URL:
-        echo    - 구글 로그인: POST http://localhost:8080/oauth/login/google
-        echo    - 카카오 로그인: POST http://localhost:8080/oauth/login/kakao
-        echo    - 네이버 로그인: POST http://localhost:8080/oauth/login/naver
+        echo    - 구글 로그인: POST http://localhost:8080/api/v1/oauth/login/google
+        echo    - 카카오 로그인: POST http://localhost:8080/api/v1/oauth/login/kakao
+        echo    - 네이버 로그인: POST http://localhost:8080/api/v1/oauth/login/naver
         echo.
-        echo 📊 로그 확인: docker-compose -f docker-compose.prod.yml logs -f api
+        echo 📊 로그 확인: docker-compose logs -f api
         pause
         exit /b 0
     )
@@ -52,6 +53,6 @@ for /l %%i in (1,1,5) do (
 )
 
 echo ❌ API 서버가 시작되지 않았습니다. 로그를 확인해주세요:
-echo    docker-compose -f docker-compose.prod.yml logs api
+echo    docker-compose logs api
 pause
 exit /b 1 

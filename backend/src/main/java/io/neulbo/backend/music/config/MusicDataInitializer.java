@@ -1,0 +1,208 @@
+package io.neulbo.backend.music.config;
+
+import io.neulbo.backend.music.domain.Category;
+import io.neulbo.backend.music.domain.Music;
+import io.neulbo.backend.music.repository.CategoryRepository;
+import io.neulbo.backend.music.repository.MusicRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class MusicDataInitializer implements CommandLineRunner {
+
+    private final CategoryRepository categoryRepository;
+    private final MusicRepository musicRepository;
+
+    @Override
+    public void run(String... args) throws Exception {
+        if (categoryRepository.count() == 0) {
+            initializeCategories();
+        }
+        
+        if (musicRepository.count() == 0) {
+            initializeSampleMusic();
+        }
+    }
+
+    private void initializeCategories() {
+        log.info("음악 카테고리 초기 데이터 생성 시작...");
+
+        List<Category> categories = List.of(
+            Category.builder()
+                .name("수면 음악")
+                .description("깊은 잠에 들 수 있도록 도와주는 부드러운 음악")
+                .iconUrl("https://example.com/icons/sleep.png")
+                .colorCode("#2E3A59")
+                .sortOrder(1)
+                .isActive(true)
+                .build(),
+
+            Category.builder()
+                .name("명상 음악")
+                .description("마음의 평안과 집중력을 높여주는 명상 음악")
+                .iconUrl("https://example.com/icons/meditation.png")
+                .colorCode("#4A5C6A")
+                .sortOrder(2)
+                .isActive(true)
+                .build(),
+
+            Category.builder()
+                .name("자연음")
+                .description("비, 바다, 숲소리 등 자연의 소리")
+                .iconUrl("https://example.com/icons/nature.png")
+                .colorCode("#2D5A27")
+                .sortOrder(3)
+                .isActive(true)
+                .build(),
+
+            Category.builder()
+                .name("백색소음")
+                .description("일정한 주파수의 배경음으로 집중력 향상")
+                .iconUrl("https://example.com/icons/whitenoise.png")
+                .colorCode("#6C757D")
+                .sortOrder(4)
+                .isActive(true)
+                .build(),
+
+            Category.builder()
+                .name("바이노럴 비트")
+                .description("뇌파 동조를 통한 수면 및 집중 유도")
+                .iconUrl("https://example.com/icons/binaural.png")
+                .colorCode("#5A4FCF")
+                .sortOrder(5)
+                .isActive(true)
+                .build(),
+
+            Category.builder()
+                .name("피아노")
+                .description("부드럽고 따뜻한 피아노 연주곡")
+                .iconUrl("https://example.com/icons/piano.png")
+                .colorCode("#8B4513")
+                .sortOrder(6)
+                .isActive(true)
+                .build()
+        );
+
+        categoryRepository.saveAll(categories);
+        log.info("카테고리 {} 개 생성 완료", categories.size());
+    }
+
+    private void initializeSampleMusic() {
+        log.info("샘플 음악 데이터 생성 시작...");
+
+        List<Category> categories = categoryRepository.findAll();
+        
+        if (categories.isEmpty()) {
+            log.warn("카테고리가 없어서 샘플 음악을 생성할 수 없습니다");
+            return;
+        }
+
+        // 카테고리별 샘플 음악 데이터
+        Category sleepCategory = categories.stream()
+                .filter(c -> "수면 음악".equals(c.getName()))
+                .findFirst()
+                .orElse(categories.get(0));
+
+        Category meditationCategory = categories.stream()
+                .filter(c -> "명상 음악".equals(c.getName()))
+                .findFirst()
+                .orElse(categories.get(0));
+
+        Category natureCategory = categories.stream()
+                .filter(c -> "자연음".equals(c.getName()))
+                .findFirst()
+                .orElse(categories.get(0));
+
+        List<Music> sampleMusic = List.of(
+            // 수면 음악
+            Music.builder()
+                .title("Peaceful Sleep")
+                .artist("Sleep Studio")
+                .album("Deep Rest")
+                .durationSeconds(3600) // 60분
+                .fileUrl("https://example.com/music/peaceful-sleep.mp3")
+                .thumbnailUrl("https://example.com/thumbnails/peaceful-sleep.jpg")
+                .description("깊은 잠에 들 수 있도록 도와주는 부드러운 멜로디")
+                .isPremium(false)
+                .isActive(true)
+                .category(sleepCategory)
+                .build(),
+
+            Music.builder()
+                .title("Dream Waves")
+                .artist("Relaxation Masters")
+                .album("Sleep Collection")
+                .durationSeconds(2700) // 45분
+                .fileUrl("https://example.com/music/dream-waves.mp3")
+                .thumbnailUrl("https://example.com/thumbnails/dream-waves.jpg")
+                .description("꿈속으로 떠나는 듯한 파도 소리")
+                .isPremium(true)
+                .isActive(true)
+                .category(sleepCategory)
+                .build(),
+
+            // 명상 음악
+            Music.builder()
+                .title("Mindful Moments")
+                .artist("Zen Collective")
+                .album("Meditation Series")
+                .durationSeconds(1800) // 30분
+                .fileUrl("https://example.com/music/mindful-moments.mp3")
+                .thumbnailUrl("https://example.com/thumbnails/mindful-moments.jpg")
+                .description("마음을 평온하게 만드는 명상 음악")
+                .isPremium(false)
+                .isActive(true)
+                .category(meditationCategory)
+                .build(),
+
+            Music.builder()
+                .title("Inner Peace")
+                .artist("Meditation Space")
+                .album("Calm Mind")
+                .durationSeconds(2400) // 40분
+                .fileUrl("https://example.com/music/inner-peace.mp3")
+                .thumbnailUrl("https://example.com/thumbnails/inner-peace.jpg")
+                .description("내면의 평화를 찾는 명상 여행")
+                .isPremium(false)
+                .isActive(true)
+                .category(meditationCategory)
+                .build(),
+
+            // 자연음
+            Music.builder()
+                .title("Forest Rain")
+                .artist("Nature Sounds")
+                .album("Natural Ambience")
+                .durationSeconds(3600) // 60분
+                .fileUrl("https://example.com/music/forest-rain.mp3")
+                .thumbnailUrl("https://example.com/thumbnails/forest-rain.jpg")
+                .description("숲속에 내리는 빗소리")
+                .isPremium(false)
+                .isActive(true)
+                .category(natureCategory)
+                .build(),
+
+            Music.builder()
+                .title("Ocean Waves")
+                .artist("Seaside Audio")
+                .album("Coastal Sounds")
+                .durationSeconds(4200) // 70분
+                .fileUrl("https://example.com/music/ocean-waves.mp3")
+                .thumbnailUrl("https://example.com/thumbnails/ocean-waves.jpg")
+                .description("해변의 파도 소리")
+                .isPremium(true)
+                .isActive(true)
+                .category(natureCategory)
+                .build()
+        );
+
+        musicRepository.saveAll(sampleMusic);
+        log.info("샘플 음악 {} 개 생성 완료", sampleMusic.size());
+    }
+} 

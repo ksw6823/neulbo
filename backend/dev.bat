@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 echo 🚀 Neulbo Backend 로컬 개발 환경 시작...
 
 REM 환경변수 파일 확인
@@ -39,9 +40,9 @@ for /l %%i in (1,1,5) do (
         echo    - Redis: localhost:6379
         echo.
         echo 🔗 테스트 URL:
-        echo    - 구글 로그인: POST http://localhost:8080/oauth/login/google
-        echo    - 카카오 로그인: POST http://localhost:8080/oauth/login/kakao
-        echo    - 네이버 로그인: POST http://localhost:8080/oauth/login/naver
+        echo    - 구글 로그인: POST http://localhost:8080/api/v1/oauth/login/google
+        echo    - 카카오 로그인: POST http://localhost:8080/api/v1/oauth/login/kakao
+        echo    - 네이버 로그인: POST http://localhost:8080/api/v1/oauth/login/naver
         echo.
         echo 📊 로그 확인: docker-compose logs -f api
         pause

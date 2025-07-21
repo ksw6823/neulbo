@@ -32,10 +32,24 @@ vim .env
 
 ### 3. 애플리케이션 실행
 
+#### 🌐 배포/프로덕션 환경 (AWS RDS 사용)
 ```bash
-# 자동 배포 스크립트 실행
+# 프로덕션 배포 스크립트 실행
 chmod +x deploy.sh
 ./deploy.sh
+
+# Windows의 경우
+deploy.bat
+```
+
+#### 💻 로컬 개발 환경 (로컬 PostgreSQL 사용)
+```bash
+# 로컬 개발 스크립트 실행
+chmod +x dev.sh
+./dev.sh
+
+# Windows의 경우
+dev.bat
 ```
 
 ### 4. 모니터링
@@ -44,6 +58,23 @@ chmod +x deploy.sh
 chmod +x monitor.sh
 ./monitor.sh
 ```
+
+## 📋 스크립트 구조
+
+### 배포 스크립트
+| 스크립트 | 환경 | 데이터베이스 | 용도 |
+|---------|------|-------------|------|
+| `deploy.sh` / `deploy.bat` | 프로덕션 | AWS RDS | 배포/운영 환경 |
+| `dev.sh` / `dev.bat` | 로컬 | PostgreSQL 컨테이너 | 로컬 개발 |
+
+### 주요 차이점
+- **프로덕션 스크립트**: `docker-compose.prod.yml` 사용, AWS RDS 연결
+- **개발 스크립트**: `docker-compose.yml` 사용, 로컬 PostgreSQL 컨테이너
+
+### 서비스 포트
+- **API 서버**: `http://localhost:8080`
+- **PostgreSQL**: `localhost:5432` (개발 환경만)
+- **Redis**: `localhost:6379`
 
 ## 🔄 코드 업데이트 방법
 

@@ -1,31 +1,8 @@
-# 🐳 Neulbo Backend Docker 가이드
+# 🐳 Docker 배포 가이드
 
-## 📁 파일 구조 (단순화됨)
+## 📁 스크립트 구조
 
-```
-backend/
-├── Dockerfile                    # 프로덕션용 멀티스테이지 빌드
-├── docker-compose.yml           # 개발환경 (기본)
-├── docker-compose.prod.yml      # 프로덕션 환경
-├── deploy.sh                    # Linux 배포 스크립트
-├── deploy.bat                   # Windows 배포 스크립트  
-├── monitor.sh                   # 모니터링 스크립트
-├── env.example                  # 환경변수 예시
-└── docker-backup/               # 백업된 복잡한 설정들
-    ├── docker-compose.microservices.yml
-    ├── docker-compose.blue-green.yml
-    └── ...
-```
-
-## 🚀 빠른 시작
-
-### 1. 환경변수 설정
-```bash
-cp env.example .env
-# .env 파일을 편집하여 실제 값들 입력
-```
-
-### 2. 개발환경 시작
+### 🌐 프로덕션/배포 환경
 ```bash
 # Linux/Mac
 ./deploy.sh
@@ -33,108 +10,135 @@ cp env.example .env
 # Windows
 deploy.bat
 ```
+- **Docker Compose 파일**: `docker-compose.prod.yml`
+- **데이터베이스**: AWS RDS
+- **프로필**: `production`
 
-### 3. 상태 확인
+### 💻 로컬 개발 환경
 ```bash
-./monitor.sh
+# Linux/Mac
+./dev.sh
+
+# Windows
+dev.bat
+```
+- **Docker Compose 파일**: `docker-compose.yml`
+- **데이터베이스**: PostgreSQL 컨테이너
+- **프로필**: `local`
+
+## 🔧 환경변수 설정
+
+### 필수 환경변수 (.env 파일)
+```env
+# JWT 시크릿 키
+JWT_SECRET_KEY=your-secret-key-at-least-32-chars
+
+# 데이터베이스 (프로덕션용)
+DB_URL=jdbc:postgresql://your-rds-endpoint:5432/neulbo
+DB_USERNAME=your-username
+DB_PASSWORD=your-password
+
+# OAuth2 클라이언트 정보
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+KAKAO_CLIENT_ID=your-kakao-client-id
+KAKAO_CLIENT_SECRET=your-kakao-client-secret
+NAVER_CLIENT_ID=your-naver-client-id
+NAVER_CLIENT_SECRET=your-naver-client-secret
 ```
 
-## 🛠️ 주요 명령어
+## 📋 Docker Compose 파일 비교
 
-### 개발환경 (기본)
+### docker-compose.yml (개발용)
+- PostgreSQL 컨테이너 포함
+- 모든 포트 외부 노출 (개발 편의성)
+- 로컬 데이터베이스 사용
+
+### docker-compose.prod.yml (프로덕션용)
+- PostgreSQL 컨테이너 없음 (AWS RDS 사용)
+- Redis만 내부 네트워크
+- 리소스 제한 설정
+- 로그 관리 설정
+
+## 🚀 배포 명령어
+
+### 프로덕션 배포
 ```bash
-# 서비스 시작
-docker-compose up -d
+# 현재 서비스 중지
+docker-compose -f docker-compose.prod.yml down
 
-# 서비스 중지
+# 새 버전 배포
+docker-compose -f docker-compose.prod.yml up -d --build
+```
+
+### 로컬 개발
+```bash
+# 현재 서비스 중지
 docker-compose down
 
-# 로그 확인
-docker-compose logs -f api
+# 개발 환경 시작
+docker-compose up -d --build
+```
 
-# 상태 확인
+## 🔍 모니터링
+
+### 서비스 상태 확인
+```bash
+# 프로덕션
+docker-compose -f docker-compose.prod.yml ps
+
+# 개발
 docker-compose ps
-```
-
-### 프로덕션 환경
-```bash
-# 프로덕션 배포
-docker-compose -f docker-compose.prod.yml up -d --build
-
-# 프로덕션 중지
-docker-compose -f docker-compose.prod.yml down
-```
-
-## 📊 서비스 정보
-
-### 개발환경
-- **API 서버**: http://localhost:8080
-- **PostgreSQL**: localhost:5432 (외부 접근 가능)
-- **Redis**: localhost:6379 (외부 접근 가능)
-
-### 프로덕션 환경
-- **API 서버**: http://localhost:8080
-- **PostgreSQL**: 내부 네트워크만
-- **Redis**: 내부 네트워크만 (보안)
-
-## 🔍 주요 엔드포인트
-
-- **헬스체크**: GET http://localhost:8080/actuator/health
-- **구글 로그인**: POST http://localhost:8080/api/v1/oauth/login/google
-- **카카오 로그인**: POST http://localhost:8080/api/v1/oauth/login/kakao
-- **네이버 로그인**: POST http://localhost:8080/api/v1/oauth/login/naver
-
-## 🧹 단순화된 이유
-
-이전에는 6개의 compose 파일과 8개의 배포 스크립트가 있어서 복잡했습니다:
-
-**이전 (복잡):**
-- docker-compose.dev.yml
-- docker-compose.dev-hotreload.yml
-- docker-compose.prod.yml
-- docker-compose.rds.yml
-- docker-compose.microservices.yml
-- docker-compose.blue-green.yml
-
-**현재 (단순):**
-- docker-compose.yml (개발환경)
-- docker-compose.prod.yml (프로덕션)
-
-## 🔄 확장시 백업 파일 활용
-
-나중에 마이크로서비스나 무중단 배포가 필요하면:
-
-```bash
-# 백업에서 복원
-cp docker-backup/docker-compose.microservices.yml .
-cp docker-backup/deploy-microservices.sh .
-```
-
-## 🚨 트러블슈팅
-
-### 포트 충돌
-```bash
-# 포트 사용 확인
-netstat -tlnp | grep :8080
-
-# 기존 컨테이너 정리
-docker-compose down --remove-orphans
 ```
 
 ### 로그 확인
 ```bash
-# 전체 로그
-docker-compose logs
+# 프로덕션
+docker-compose -f docker-compose.prod.yml logs -f api
 
-# 특정 서비스 로그
+# 개발
 docker-compose logs -f api
-docker-compose logs -f postgres
-docker-compose logs -f redis
 ```
 
-## 📞 지원
+### 헬스체크
+```bash
+curl http://localhost:8080/actuator/health
+```
 
-문제가 있으면 다음 순서로 확인:
-1. `docker-compose ps` - 컨테이너 상태
-2. `docker-compose logs api` - API 로그
-3. `./monitor.sh` - 전체 상태 확인 
+## ⚠️ 주의사항
+
+1. **환경변수**: 프로덕션에서는 반드시 `.env` 파일 설정 필요
+2. **포트 충돌**: 기존 PostgreSQL/Redis 서비스와 포트 충돌 주의
+3. **메모리 사용량**: 프로덕션에서는 리소스 제한 설정됨
+4. **보안**: 프로덕션에서는 Redis 포트 외부 노출 안함
+
+## 🛠️ 트러블슈팅
+
+### 일반적인 문제
+
+1. **포트 이미 사용 중**
+   ```bash
+   # 기존 프로세스 확인
+   netstat -tulpn | grep :8080
+   
+   # 프로세스 종료
+   sudo kill -9 <PID>
+   ```
+
+2. **Docker 권한 문제**
+   ```bash
+   # Docker 그룹에 사용자 추가
+   sudo usermod -aG docker $USER
+   newgrp docker
+   ```
+
+3. **메모리 부족**
+   ```bash
+   # 사용하지 않는 컨테이너/이미지 정리
+   docker system prune -a
+   ```
+
+4. **데이터베이스 연결 실패**
+   - AWS RDS 보안 그룹 설정 확인
+   - 환경변수 값 확인
+   - 네트워크 연결 상태 확인 

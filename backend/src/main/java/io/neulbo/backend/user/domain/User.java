@@ -42,6 +42,10 @@ public class User {
     @Column
     private LocalDate birth;
 
+    @Column(name = "current_points", nullable = false)
+    @Builder.Default
+    private Integer currentPoints = 0;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -103,5 +107,17 @@ public class User {
 
     public void updateSettings(Boolean isPrivate) {
         if (isPrivate != null) this.isPrivate = isPrivate;
+    }
+
+    public void addPoints(Integer points) {
+        if (points != null && points > 0) {
+            this.currentPoints += points;
+        }
+    }
+
+    public void subtractPoints(Integer points) {
+        if (points != null && points > 0 && this.currentPoints >= points) {
+            this.currentPoints -= points;
+        }
     }
 }

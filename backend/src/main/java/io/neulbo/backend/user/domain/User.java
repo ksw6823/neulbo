@@ -19,6 +19,9 @@ import java.util.UUID;
 @Builder
 public class User {
 
+    // 포인트 관련 상수
+    public static final int MAX_POINTS = 1_000_000; // 최대 포인트 한도
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -110,14 +113,39 @@ public class User {
     }
 
     public void addPoints(Integer points) {
-        if (points != null && points > 0) {
-            this.currentPoints += points;
+        if (points == null) {
+            throw new IllegalArgumentException("추가할 포인트는 null일 수 없습니다.");
         }
+        
+        if (points <= 0) {
+            throw new IllegalArgumentException("추가할 포인트는 양수여야 합니다.");
+        }
+        
+        if (points > MAX_POINTS) {
+            throw new IllegalArgumentException("한 번에 추가할 수 있는 포인트는 " + MAX_POINTS + " 이하여야 합니다.");
+        }
+        
+        // 오버플로우 검사
+        if (this.currentPoints > MAX_POINTS - points) {
+            throw new IllegalArgumentException("포인트 추가 후 최대 한도(" + MAX_POINTS + ")를 초과할 수 없습니다.");
+        }
+        
+        this.currentPoints += points;
     }
 
     public void subtractPoints(Integer points) {
-        if (points != null && points > 0 && this.currentPoints >= points) {
-            this.currentPoints -= points;
+        if (points == null) {
+            throw new IllegalArgumentException("차감할 포인트는 null일 수 없습니다.");
         }
+        
+        if (points <= 0) {
+            throw new IllegalArgumentException("차감할 포인트는 양수여야 합니다.");
+        }
+        
+        if (this.currentPoints < points) {
+            throw new IllegalArgumentException("보유 포인트가 부족합니다. 현재: " + this.currentPoints + ", 필요: " + points);
+        }
+        
+        this.currentPoints -= points;
     }
 }

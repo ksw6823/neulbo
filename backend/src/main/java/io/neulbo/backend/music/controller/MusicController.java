@@ -26,6 +26,10 @@ public class MusicController {
     private static final int DEFAULT_POPULAR_MUSIC_LIMIT = 10;
     private static final int MAX_POPULAR_MUSIC_LIMIT = 100;
     private static final int MIN_POPULAR_MUSIC_LIMIT = 1;
+    
+    // 검색 키워드 관련 상수
+    private static final int MIN_KEYWORD_LENGTH = 1;
+    private static final int MAX_KEYWORD_LENGTH = 100;
 
     private final MusicService musicService;
 
@@ -62,16 +66,62 @@ public class MusicController {
 
     /**
      * 음악 검색
+     * 
+     * @param keyword 검색 키워드 (1-100자, 공백만으로는 불가)
+     * @param pageable 페이징 정보
+     * @return 검색 결과 또는 에러 응답
      */
     @GetMapping("/search")
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<Page<MusicResponse>> searchMusic(
+    public ResponseEntity<?> searchMusic(
             @RequestParam String keyword,
             @PageableDefault(size = 20) Pageable pageable) {
         
-        log.info("음악 검색 요청, keyword: {}, page: {}", keyword, pageable.getPageNumber());
+        log.info("음악 검색 요청, keyword: '{}', page: {}", keyword, pageable.getPageNumber());
         
-        Page<MusicResponse> musicPage = musicService.searchMusic(keyword, pageable);
+        // keyword 파라미터 유효성 검사
+        if (keyword == null) {
+            log.warn("검색 키워드가 null입니다");
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "검색 키워드는 필수입니다",
+                               "minLength", MIN_KEYWORD_LENGTH,
+                               "maxLength", MAX_KEYWORD_LENGTH));
+        }
+        
+        String trimmedKeyword = keyword.trim();
+        if (trimmedKeyword.isEmpty()) {
+            log.warn("검색 키워드가 빈 문자열 또는 공백만 포함합니다: '{}'", keyword);
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "검색 키워드는 공백만으로 구성될 수 없습니다",
+                               "providedKeyword", keyword,
+                               "minLength", MIN_KEYWORD_LENGTH,
+                               "maxLength", MAX_KEYWORD_LENGTH));
+        }
+        
+        if (trimmedKeyword.length() < MIN_KEYWORD_LENGTH) {
+            log.warn("검색 키워드가 너무 짧습니다: '{}', 길이: {}", trimmedKeyword, trimmedKeyword.length());
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "검색 키워드는 " + MIN_KEYWORD_LENGTH + "자 이상이어야 합니다",
+                               "providedKeyword", trimmedKeyword,
+                               "keywordLength", trimmedKeyword.length(),
+                               "minLength", MIN_KEYWORD_LENGTH,
+                               "maxLength", MAX_KEYWORD_LENGTH));
+        }
+        
+        if (trimmedKeyword.length() > MAX_KEYWORD_LENGTH) {
+            log.warn("검색 키워드가 너무 깁니다: '{}', 길이: {}", trimmedKeyword, trimmedKeyword.length());
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "검색 키워드는 " + MAX_KEYWORD_LENGTH + "자 이하여야 합니다",
+                               "providedKeyword", trimmedKeyword,
+                               "keywordLength", trimmedKeyword.length(),
+                               "minLength", MIN_KEYWORD_LENGTH,
+                               "maxLength", MAX_KEYWORD_LENGTH));
+        }
+        
+        Page<MusicResponse> musicPage = musicService.searchMusic(trimmedKeyword, pageable);
+        
+        log.info("음악 검색 완료, keyword: '{}', page: {}, 결과 개수: {}", 
+                trimmedKeyword, pageable.getPageNumber(), musicPage.getContent().size());
         
         return ResponseEntity.ok(musicPage);
     }
@@ -245,16 +295,37 @@ public class MusicController {
 
     /**
      * 음악 재생수 증가
+     * 
+     * 사용자별 재생 로그를 기록하고 음악의 전체 재생수를 원자적으로 증가시킵니다.
+     * 
+     * @param musicId 재생할 음악 ID
+     * @return 성공 메시지
+     * @throws IllegalArgumentException 음악을 찾을 수 없는 경우
      */
     @PostMapping("/{musicId}/play")
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<String> incrementPlayCount(@PathVariable UUID musicId) {
+    public ResponseEntity<Map<String, Object>> incrementPlayCount(@PathVariable UUID musicId) {
         
         UUID userId = SecurityUtils.getCurrentUserId();
         log.info("음악 재생수 증가 요청, musicId: {}, userId: {}", musicId, userId);
         
-        musicService.incrementPlayCount(musicId);
-        
-        return ResponseEntity.ok("재생수가 증가되었습니다");
+        try {
+            musicService.incrementPlayCount(musicId, userId);
+            
+            log.info("음악 재생수 증가 완료, musicId: {}, userId: {}", musicId, userId);
+            
+            return ResponseEntity.ok(Map.of(
+                    "message", "재생수가 증가되었습니다",
+                    "musicId", musicId,
+                    "userId", userId,
+                    "timestamp", System.currentTimeMillis()
+            ));
+            
+        } catch (IllegalArgumentException e) {
+            log.warn("음악 재생수 증가 실패, musicId: {}, userId: {}, error: {}", musicId, userId, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage(),
+                               "musicId", musicId));
+        }
     }
 } 

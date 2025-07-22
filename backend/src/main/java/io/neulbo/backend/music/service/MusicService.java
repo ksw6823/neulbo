@@ -136,18 +136,47 @@ public class MusicService {
     }
 
     /**
-     * 음악 재생수 증가
+     * 음악 재생수 증가 (사용자별 재생 로그 포함)
+     * 
+     * 동시성 안전성을 위해 원자적 업데이트를 사용하고,
+     * 사용자별 재생 기록을 로그로 남깁니다.
+     * 
+     * @param musicId 재생할 음악 ID
+     * @param userId 재생하는 사용자 ID
+     * @throws IllegalArgumentException 음악을 찾을 수 없는 경우
      */
     @Transactional
+    public void incrementPlayCount(UUID musicId, UUID userId) {
+        log.debug("음악 재생수 증가, musicId: {}, userId: {}", musicId, userId);
+        
+        // 음악 존재 여부 확인
+        if (!musicRepository.existsById(musicId)) {
+            throw new IllegalArgumentException("음악을 찾을 수 없습니다: " + musicId);
+        }
+        
+        // 원자적으로 재생수 증가 (동시성 안전)
+        int updatedRows = musicRepository.incrementPlayCountAtomically(musicId);
+        
+        if (updatedRows == 0) {
+            throw new IllegalArgumentException("음악 재생수 업데이트에 실패했습니다: " + musicId);
+        }
+        
+        // 사용자별 재생 로그 기록
+        log.info("사용자 음악 재생 기록, musicId: {}, userId: {}, timestamp: {}", 
+                musicId, userId, System.currentTimeMillis());
+        
+        log.info("음악 재생수 증가 완료, musicId: {}, userId: {}", musicId, userId);
+    }
+    
+    /**
+     * @deprecated userId가 없는 기존 메서드는 사용 중단됨.
+     *             대신 {@link #incrementPlayCount(UUID, UUID)}를 사용하세요.
+     */
+    @Deprecated(since = "1.0", forRemoval = true)
+    @Transactional
     public void incrementPlayCount(UUID musicId) {
-        log.debug("음악 재생수 증가, musicId: {}", musicId);
-        
-        Music music = musicRepository.findById(musicId)
-                .orElseThrow(() -> new IllegalArgumentException("음악을 찾을 수 없습니다: " + musicId));
-        
-        music.incrementPlayCount();
-        musicRepository.save(music);
-        
-        log.info("음악 재생수 증가 완료, musicId: {}, newPlayCount: {}", musicId, music.getPlayCount());
+        log.warn("Deprecated incrementPlayCount(musicId) 메서드 호출됨. userId를 포함한 메서드 사용을 권장합니다.");
+        // 임시로 null userId로 새 메서드 호출
+        incrementPlayCount(musicId, null);
     }
 } 

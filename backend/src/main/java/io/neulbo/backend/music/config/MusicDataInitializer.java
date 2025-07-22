@@ -11,6 +11,18 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+/**
+ * 음악 데이터 초기화 컴포넌트
+ * 
+ * 주의: 현재 모든 URL들(iconUrl, fileUrl, thumbnailUrl)은 개발용 임시 데이터입니다.
+ * 프로덕션 배포 전에 실제 파일 경로 또는 CDN URL로 교체해야 합니다.
+ * 
+ * TODO: 
+ * - 실제 음악 파일 준비 및 업로드
+ * - 카테고리 아이콘 파일 준비 및 업로드  
+ * - 음악 썸네일 이미지 준비 및 업로드
+ * - application.yml에서 baseUrl 설정 후 동적 URL 생성으로 변경
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -21,23 +33,39 @@ public class MusicDataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
+        // 카테고리 초기화
         if (categoryRepository.count() == 0) {
-            initializeCategories();
+            try {
+                initializeCategories();
+                log.info("음악 카테고리 초기화 완료");
+            } catch (Exception e) {
+                log.error("음악 카테고리 초기화 실패: {}", e.getMessage(), e);
+                log.warn("카테고리 초기화 실패로 인해 일부 기능이 제한될 수 있습니다.");
+            }
         }
         
+        // 샘플 음악 초기화
         if (musicRepository.count() == 0) {
-            initializeSampleMusic();
+            try {
+                initializeSampleMusic();
+                log.info("샘플 음악 초기화 완료");
+            } catch (Exception e) {
+                log.error("샘플 음악 초기화 실패: {}", e.getMessage(), e);
+                log.warn("샘플 음악 초기화 실패로 인해 일부 기능이 제한될 수 있습니다.");
+            }
         }
     }
 
     private void initializeCategories() {
         log.info("음악 카테고리 초기 데이터 생성 시작...");
 
+        // TODO: 실제 음악 파일 및 아이콘 준비 후 URL 업데이트 필요
+        // 현재 iconUrl은 개발용 임시 데이터로, 프로덕션 환경에서는 실제 파일 경로로 변경해야 함
         List<Category> categories = List.of(
             Category.builder()
                 .name("수면 음악")
                 .description("깊은 잠에 들 수 있도록 도와주는 부드러운 음악")
-                .iconUrl("https://example.com/icons/sleep.png")
+                .iconUrl("https://example.com/icons/sleep.png") // 임시 URL - 실제 아이콘 파일로 교체 필요
                 .colorCode("#2E3A59")
                 .sortOrder(1)
                 .isActive(true)
@@ -96,6 +124,8 @@ public class MusicDataInitializer implements CommandLineRunner {
     private void initializeSampleMusic() {
         log.info("샘플 음악 데이터 생성 시작...");
 
+        // TODO: 실제 음악 파일 및 썸네일 준비 후 URL 업데이트 필요
+        // 현재 fileUrl, thumbnailUrl은 개발용 임시 데이터로, 프로덕션 환경에서는 실제 파일 경로로 변경해야 함
         List<Category> categories = categoryRepository.findAll();
         
         if (categories.isEmpty()) {
@@ -126,8 +156,8 @@ public class MusicDataInitializer implements CommandLineRunner {
                 .artist("Sleep Studio")
                 .album("Deep Rest")
                 .durationSeconds(3600) // 60분
-                .fileUrl("https://example.com/music/peaceful-sleep.mp3")
-                .thumbnailUrl("https://example.com/thumbnails/peaceful-sleep.jpg")
+                .fileUrl("https://example.com/music/peaceful-sleep.mp3") // 임시 URL - 실제 음악 파일로 교체 필요
+                .thumbnailUrl("https://example.com/thumbnails/peaceful-sleep.jpg") // 임시 URL - 실제 썸네일로 교체 필요
                 .description("깊은 잠에 들 수 있도록 도와주는 부드러운 멜로디")
                 .isPremium(false)
                 .isActive(true)

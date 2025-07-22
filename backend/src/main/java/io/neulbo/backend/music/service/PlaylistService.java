@@ -22,6 +22,21 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * 플레이리스트 서비스
+ * 
+ * 주요 기능:
+ * - 플레이리스트 생성, 조회, 수정, 삭제
+ * - 플레이리스트에 음악 추가/제거 시 통계 자동 업데이트
+ *   (음악 개수, 총 재생시간이 실시간으로 동기화됨)
+ * - 사용자별 플레이리스트 관리
+ * - 공개/비공개 플레이리스트 지원
+ * 
+ * 통계 업데이트:
+ * - addMusicToPlaylist(): 음악 추가 시 Playlist.addMusic() 호출
+ * - removeMusicFromPlaylist(): 음악 제거 시 Playlist.removeMusic() 호출
+ * - 두 메서드 모두 플레이리스트의 musicCount, totalDurationSeconds 자동 계산
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -153,6 +168,16 @@ public class PlaylistService {
 
     /**
      * 플레이리스트에 음악 추가
+     * 
+     * 추가된 기능:
+     * - 음악 추가 후 플레이리스트 통계 자동 업데이트 (음악 개수, 총 재생시간)
+     * - 중복 음악 추가 방지
+     * - 정렬 순서 자동 할당 (미지정 시)
+     * 
+     * @param playlistId 플레이리스트 ID
+     * @param userId 사용자 ID (권한 검증용)
+     * @param request 음악 추가 요청 정보
+     * @throws IllegalArgumentException 플레이리스트/음악 없음, 권한 없음, 중복 음악, 비활성 음악
      */
     @Transactional
     public void addMusicToPlaylist(UUID playlistId, UUID userId, PlaylistAddMusicRequest request) {
@@ -186,14 +211,35 @@ public class PlaylistService {
                     .orElse(0) + 1;
         }
         
+        // 추가 전 통계 정보 로깅
+        int oldMusicCount = playlist.getMusicCount();
+        int oldTotalDuration = playlist.getTotalDurationSeconds();
+        
         PlaylistMusic playlistMusic = PlaylistMusic.create(playlist, music, sortOrder);
         playlistMusicRepository.save(playlistMusic);
         
-        log.info("플레이리스트에 음악 추가 완료, playlistId: {}, musicId: {}", playlistId, request.getMusicId());
+        // 플레이리스트에 음악 추가 및 통계 업데이트 (음악 개수, 총 재생시간)
+        playlist.addMusic(playlistMusic);
+        playlistRepository.save(playlist);
+        
+        // 통계 업데이트 확인 로깅
+        log.info("플레이리스트에 음악 추가 완료, playlistId: {}, musicId: {}, " +
+                "음악 개수: {} → {}, 총 재생시간: {}초 → {}초", 
+                playlistId, request.getMusicId(), oldMusicCount, playlist.getMusicCount(), 
+                oldTotalDuration, playlist.getTotalDurationSeconds());
     }
 
     /**
      * 플레이리스트에서 음악 제거
+     * 
+     * 추가된 기능:
+     * - 음악 제거 후 플레이리스트 통계 자동 업데이트 (음악 개수, 총 재생시간)
+     * - 존재하지 않는 음악 제거 시 예외 처리
+     * 
+     * @param playlistId 플레이리스트 ID
+     * @param musicId 제거할 음악 ID
+     * @param userId 사용자 ID (권한 검증용)
+     * @throws IllegalArgumentException 플레이리스트/음악 없음, 권한 없음
      */
     @Transactional
     public void removeMusicFromPlaylist(UUID playlistId, UUID musicId, UUID userId) {
@@ -207,13 +253,23 @@ public class PlaylistService {
             throw new IllegalArgumentException("수정 권한이 없습니다");
         }
         
-        if (!playlistMusicRepository.existsByPlaylistIdAndMusicId(playlistId, musicId)) {
-            throw new IllegalArgumentException("플레이리스트에 해당 음악이 존재하지 않습니다");
-        }
+        PlaylistMusic playlistMusic = playlistMusicRepository.findByPlaylistIdAndMusicId(playlistId, musicId)
+                .orElseThrow(() -> new IllegalArgumentException("플레이리스트에 해당 음악이 존재하지 않습니다"));
         
-        playlistMusicRepository.deleteByPlaylistIdAndMusicId(playlistId, musicId);
+        // 삭제 전 통계 정보 로깅
+        int oldMusicCount = playlist.getMusicCount();
+        int oldTotalDuration = playlist.getTotalDurationSeconds();
         
-        log.info("플레이리스트에서 음악 제거 완료, playlistId: {}, musicId: {}", playlistId, musicId);
+        // 플레이리스트에서 음악 제거 및 통계 업데이트 (음악 개수, 총 재생시간)
+        playlist.removeMusic(playlistMusic);
+        playlistMusicRepository.delete(playlistMusic);
+        playlistRepository.save(playlist);
+        
+        // 통계 업데이트 확인 로깅
+        log.info("플레이리스트에서 음악 제거 완료, playlistId: {}, musicId: {}, " +
+                "음악 개수: {} → {}, 총 재생시간: {}초 → {}초", 
+                playlistId, musicId, oldMusicCount, playlist.getMusicCount(), 
+                oldTotalDuration, playlist.getTotalDurationSeconds());
     }
 
     /**

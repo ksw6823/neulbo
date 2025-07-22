@@ -13,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -149,13 +150,46 @@ public class MusicController {
      */
     @GetMapping("/duration")
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<Page<MusicResponse>> getMusicByDurationRange(
+    public ResponseEntity<?> getMusicByDurationRange(
             @RequestParam Integer minDuration,
             @RequestParam Integer maxDuration,
             @PageableDefault(size = 20) Pageable pageable) {
         
         log.info("재생시간 범위 음악 조회 요청, minDuration: {}, maxDuration: {}, page: {}", 
                 minDuration, maxDuration, pageable.getPageNumber());
+        
+        // 입력값 유효성 검사
+        if (minDuration == null) {
+            log.warn("최소 재생시간이 null입니다");
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "최소 재생시간(minDuration)은 필수 입력값입니다"));
+        }
+        
+        if (maxDuration == null) {
+            log.warn("최대 재생시간이 null입니다");
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "최대 재생시간(maxDuration)은 필수 입력값입니다"));
+        }
+        
+        if (minDuration < 0) {
+            log.warn("최소 재생시간이 음수입니다: {}", minDuration);
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "최소 재생시간은 0 이상이어야 합니다"));
+        }
+        
+        if (maxDuration < 0) {
+            log.warn("최대 재생시간이 음수입니다: {}", maxDuration);
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "최대 재생시간은 0 이상이어야 합니다"));
+        }
+        
+        if (minDuration > maxDuration) {
+            log.warn("최소 재생시간이 최대 재생시간보다 큽니다. min: {}, max: {}", minDuration, maxDuration);
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "최소 재생시간은 최대 재생시간보다 클 수 없습니다", 
+                               "minDuration", minDuration, 
+                               "maxDuration", maxDuration));
+        }
         
         Page<MusicResponse> musicPage = musicService.getMusicByDurationRange(minDuration, maxDuration, pageable);
         

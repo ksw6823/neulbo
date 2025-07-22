@@ -63,7 +63,7 @@ public class Music {
     @JoinColumn(name = "category_id")
     private Category category;
 
-    @OneToMany(mappedBy = "music", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "music", cascade = {CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE}, orphanRemoval = true)
     @Builder.Default
     private List<PlaylistMusic> playlistMusicList = new ArrayList<>();
 
@@ -92,6 +92,14 @@ public class Music {
         this.updatedAt = LocalDateTime.now();
     }
 
+    /**
+     * 재생 횟수 증가 (비원자적 연산)
+     * 
+     * @deprecated 동시성 문제로 인해 사용 중단됨. 
+     *             대신 MusicRepository.incrementPlayCountAtomically(UUID musicId)를 사용하세요.
+     *             이 메서드는 race condition을 일으킬 수 있으므로 프로덕션 환경에서 사용하지 마세요.
+     */
+    @Deprecated(since = "1.0", forRemoval = true)
     public void incrementPlayCount() {
         this.playCount++;
         this.updatedAt = LocalDateTime.now();

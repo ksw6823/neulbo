@@ -2,6 +2,7 @@ package io.neulbo.backend.challenge.repository;
 
 import io.neulbo.backend.challenge.domain.UserChallenge;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -24,8 +25,19 @@ public interface UserChallengeRepository extends JpaRepository<UserChallenge, Lo
     boolean existsByUserIdAndChallengeIdAndStatus(UUID userId, Long challengeId, UserChallenge.ChallengeStatus status);
     
     // 특정 챌린지의 진행률 순 리더보드 (상위 10명)
-    @Query("SELECT uc FROM UserChallenge uc " +
-           "WHERE uc.challenge.id = :challengeId " +
-           "ORDER BY uc.completedDays DESC, uc.createdAt ASC")
-    List<UserChallenge> findTop10ByChallengeIdOrderByCompletedDaysDesc(@Param("challengeId") Long challengeId);
+    List<UserChallenge> findTop10ByChallengeIdOrderByCompletedDaysDescCreatedAtAsc(Long challengeId);
+    
+    // 배치 업데이트: 여러 챌린지의 완료 일수 증가
+    @Modifying
+    @Query("UPDATE UserChallenge uc SET uc.completedDays = uc.completedDays + 1 " +
+           "WHERE uc.id IN :userChallengeIds")
+    int incrementCompletedDaysForChallenges(@Param("userChallengeIds") List<Long> userChallengeIds);
+    
+    // 배치 업데이트: 완료된 챌린지들의 상태를 COMPLETED로 변경
+    @Modifying
+    @Query("UPDATE UserChallenge uc SET uc.status = :completedStatus " +
+           "WHERE uc.completedDays >= uc.challenge.durationDays " +
+           "AND uc.status = :activeStatus")
+    int updateCompletedChallengeStatus(@Param("completedStatus") UserChallenge.ChallengeStatus completedStatus,
+                                       @Param("activeStatus") UserChallenge.ChallengeStatus activeStatus);
 } 

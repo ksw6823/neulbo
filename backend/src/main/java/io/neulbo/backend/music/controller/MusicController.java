@@ -22,6 +22,11 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class MusicController {
 
+    // 상수 정의
+    private static final int DEFAULT_POPULAR_MUSIC_LIMIT = 10;
+    private static final int MAX_POPULAR_MUSIC_LIMIT = 100;
+    private static final int MIN_POPULAR_MUSIC_LIMIT = 1;
+
     private final MusicService musicService;
 
     /**
@@ -198,16 +203,42 @@ public class MusicController {
 
     /**
      * 카테고리별 인기 음악 조회
+     * 
+     * @param categoryId 카테고리 ID
+     * @param limit 조회할 음악 개수 (1-100 범위, 기본값: 10)
+     * @return 인기 음악 목록 또는 에러 응답
      */
     @GetMapping("/category/{categoryId}/popular")
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<List<MusicResponse>> getPopularMusicByCategory(
+    public ResponseEntity<?> getPopularMusicByCategory(
             @PathVariable UUID categoryId,
             @RequestParam(defaultValue = "10") int limit) {
         
         log.info("카테고리별 인기 음악 조회 요청, categoryId: {}, limit: {}", categoryId, limit);
         
+        // limit 파라미터 유효성 검사
+        if (limit < MIN_POPULAR_MUSIC_LIMIT) {
+            log.warn("limit 값이 최소값보다 작습니다: {}, 최소값: {}", limit, MIN_POPULAR_MUSIC_LIMIT);
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "limit은 " + MIN_POPULAR_MUSIC_LIMIT + " 이상이어야 합니다", 
+                               "providedLimit", limit, 
+                               "minLimit", MIN_POPULAR_MUSIC_LIMIT,
+                               "maxLimit", MAX_POPULAR_MUSIC_LIMIT));
+        }
+        
+        if (limit > MAX_POPULAR_MUSIC_LIMIT) {
+            log.warn("limit 값이 최대값을 초과합니다: {}, 최대값: {}", limit, MAX_POPULAR_MUSIC_LIMIT);
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "limit은 " + MAX_POPULAR_MUSIC_LIMIT + " 이하여야 합니다", 
+                               "providedLimit", limit, 
+                               "minLimit", MIN_POPULAR_MUSIC_LIMIT,
+                               "maxLimit", MAX_POPULAR_MUSIC_LIMIT));
+        }
+        
         List<MusicResponse> musicList = musicService.getPopularMusicByCategory(categoryId, limit);
+        
+        log.info("카테고리별 인기 음악 조회 완료, categoryId: {}, limit: {}, 결과 개수: {}", 
+                categoryId, limit, musicList.size());
         
         return ResponseEntity.ok(musicList);
     }

@@ -120,12 +120,16 @@ public class MusicService {
     }
 
     /**
-     * 카테고리별 인기 음악 조회
+     * 카테고리별 인기 음악 조회 (상위 N개)
+     * 
+     * @param categoryId 카테고리 ID
+     * @param limit 조회할 음악 개수
+     * @return 재생수 기준 상위 N개 음악 응답 목록
      */
     public List<MusicResponse> getPopularMusicByCategory(UUID categoryId, int limit) {
         log.debug("카테고리별 인기 음악 조회, categoryId: {}, limit: {}", categoryId, limit);
         
-        return musicRepository.findPopularMusicByCategory(categoryId, Pageable.ofSize(limit))
+        return musicRepository.findPopularMusicByCategory(categoryId, limit)
                 .stream()
                 .map(MusicResponse::from)
                 .collect(Collectors.toList());

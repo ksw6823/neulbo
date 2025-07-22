@@ -74,10 +74,14 @@ public interface MusicRepository extends JpaRepository<Music, UUID> {
     Page<Music> findByIsPremiumTrueAndIsActiveTrueOrderByCreatedAtDesc(Pageable pageable);
 
     /**
-     * 특정 카테고리의 인기 음악
+     * 특정 카테고리의 인기 음악 (상위 N개)
+     * 
+     * @param categoryId 카테고리 ID
+     * @param limit 조회할 음악 개수
+     * @return 재생수 기준 상위 N개 음악 목록
      */
-    @Query("SELECT m FROM Music m WHERE m.category.id = :categoryId AND m.isActive = true ORDER BY m.playCount DESC")
-    List<Music> findPopularMusicByCategory(@Param("categoryId") UUID categoryId, Pageable pageable);
+    @Query(value = "SELECT * FROM music m WHERE m.category_id = :categoryId AND m.is_active = true ORDER BY m.play_count DESC LIMIT :limit", nativeQuery = true)
+    List<Music> findPopularMusicByCategory(@Param("categoryId") UUID categoryId, @Param("limit") int limit);
 
     /**
      * 재생시간 범위로 음악 조회

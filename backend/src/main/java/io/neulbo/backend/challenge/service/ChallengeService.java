@@ -214,8 +214,8 @@ public class ChallengeService {
             // 사용자 조회 및 포인트 지급
             User user = userService.findUserById(userId);
             
-            // TODO: User 엔티티에 포인트 시스템이 구현되면 주석 해제
-            // user.addPoints(points);
+            // 포인트 추가
+            user.addPoints(points);
             
             log.info("포인트 지급 성공 - User ID: {}, Points: {}", userId, points);
             

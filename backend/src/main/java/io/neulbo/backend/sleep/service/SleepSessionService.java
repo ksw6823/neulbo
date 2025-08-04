@@ -26,6 +26,10 @@ import java.util.stream.Collectors;
 @Slf4j
 public class SleepSessionService {
 
+    // 중단된 세션 정리를 위한 시간 관련 상수
+    private static final int STALE_SESSION_HOURS = 24; // 중단된 것으로 간주할 시간 (시간)
+    private static final int ASSUMED_SLEEP_HOURS = 8;  // 중단된 세션의 가정 수면 시간 (시간)
+
     private final SleepSessionRepository sleepSessionRepository;
 
     /**
@@ -180,11 +184,11 @@ public class SleepSessionService {
      */
     @Transactional
     public void cleanupStaleSessions() {
-        LocalDateTime cutoffTime = LocalDateTime.now().minusHours(24); // 24시간 이상 된 진행 중 세션들
+        LocalDateTime cutoffTime = LocalDateTime.now().minusHours(STALE_SESSION_HOURS); // 24시간 이상 된 진행 중 세션들
         List<SleepSession> staleSessions = sleepSessionRepository.findStaleInProgressSessions(cutoffTime);
         
         for (SleepSession session : staleSessions) {
-            session.endSleep(session.getCreatedAt().plusHours(8)); // 8시간으로 가정하고 종료
+            session.endSleep(session.getCreatedAt().plusHours(ASSUMED_SLEEP_HOURS)); // 8시간으로 가정하고 종료
             log.warn("중단된 수면 세션 정리: sessionId={}", session.getId());
         }
         

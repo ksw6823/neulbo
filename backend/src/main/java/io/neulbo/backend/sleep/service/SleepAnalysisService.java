@@ -43,11 +43,11 @@ public class SleepAnalysisService {
         }
 
         try {
-            // 기존 수면 단계 데이터 삭제 (재분석인 경우)
-            List<SleepStageData> existingStages = sleepStageDataRepository.findBySleepSessionOrderByStageStartTimeAsc(session);
-            if (!existingStages.isEmpty()) {
-                sleepStageDataRepository.deleteAll(existingStages);
-                log.info("기존 수면 단계 데이터 삭제: {} 개", existingStages.size());
+            // 기존 수면 단계 데이터 벌크 삭제 (재분석인 경우)
+            // 메모리에 로드하지 않고 직접 데이터베이스에서 삭제하여 성능 최적화
+            int deletedCount = sleepStageDataRepository.deleteBySleepSession(session);
+            if (deletedCount > 0) {
+                log.info("기존 수면 단계 데이터 벌크 삭제: {} 개", deletedCount);
             }
 
             // 움직임 데이터 조회
@@ -101,11 +101,14 @@ public class SleepAnalysisService {
                 .mapToInt(s -> s.getTotalMovementCount() != null ? s.getTotalMovementCount() : 0)
                 .average().orElse(0.0);
 
+        // 전체 수면 세션 수 조회
+        long totalSessions = sleepSessionRepository.countByUser(user);
+
         return new SleepStatisticsResponse(
                 avgSleepDuration,
                 avgSleepEfficiency,
-                completedSessions.size(),
-                completedSessions.size(),
+                (int) totalSessions,  // 전체 수면 세션 수
+                completedSessions.size(),  // 완료된 세션 수
                 stageDistribution,
                 avgDeepSleepPercentage,
                 avgREMSleepPercentage,
@@ -119,16 +122,17 @@ public class SleepAnalysisService {
      * 특정 기간의 수면 통계 조회
      */
     public SleepStatisticsResponse getSleepStatisticsForPeriod(User user, LocalDateTime startDate, LocalDateTime endDate) {
-        List<SleepSession> sessions = sleepSessionRepository.findByUserAndDateRange(user, startDate, endDate)
-                .stream()
+        List<SleepSession> allSessionsInPeriod = sleepSessionRepository.findByUserAndDateRange(user, startDate, endDate);
+        List<SleepSession> completedSessions = allSessionsInPeriod.stream()
                 .filter(SleepSession::isCompleted)
                 .collect(Collectors.toList());
 
-        return calculateStatisticsForSessions(sessions);
+        return calculateStatisticsForSessions(completedSessions, allSessionsInPeriod.size());
     }
 
     /**
      * 움직임 기반 수면 단계 분석 (간단한 규칙 기반)
+     * 성능 최적화: O(n²) → O(n + m) 복잡도로 개선 (n: movementData 크기, m: 간격 수)
      */
     private void analyzeAndCreateSleepStages(SleepSession session, List<MovementData> movementData) {
         LocalDateTime sleepStart = session.getSleepStartTime();
@@ -140,14 +144,20 @@ public class SleepAnalysisService {
         
         List<SleepStageData> stageDataList = new ArrayList<>();
         
+        // movementData가 시간순으로 정렬되어 있다고 가정하고 인덱스 기반 접근법 사용
+        // O(n²) 복잡도를 O(n + m)으로 개선 (중복 필터링 제거)
+        int movementDataIndex = 0;
+        
         for (int i = 0; i < totalMinutes; i += intervalMinutes) {
             LocalDateTime intervalStart = sleepStart.plusMinutes(i);
             LocalDateTime intervalEnd = sleepStart.plusMinutes(Math.min(i + intervalMinutes, totalMinutes));
             
-            // 해당 구간의 움직임 데이터 조회
-            List<MovementData> intervalMovements = movementData.stream()
-                    .filter(m -> !m.getTimestamp().isBefore(intervalStart) && m.getTimestamp().isBefore(intervalEnd))
-                    .collect(Collectors.toList());
+            // 해당 구간의 움직임 데이터를 인덱스 기반으로 효율적으로 수집
+            List<MovementData> intervalMovements = collectMovementsForInterval(
+                    movementData, intervalStart, intervalEnd, movementDataIndex);
+            
+            // 다음 간격을 위해 인덱스 업데이트: 현재 간격을 지나간 데이터들은 건너뛰기
+            movementDataIndex = updateMovementDataIndex(movementData, intervalEnd, movementDataIndex);
             
             // 수면 단계 결정
             SleepStage stage = determineSleepStage(intervalMovements, intervalStart, sleepStart);
@@ -155,10 +165,15 @@ public class SleepAnalysisService {
             
             // 수면 단계 데이터 생성
             SleepStageData stageData = SleepStageData.create(stage, intervalStart, confidence);
-            stageData.endStage(intervalEnd);
-            stageData.setSleepSession(session);
+            if (!stageData.tryEndStage(intervalEnd)) {
+                // 종료 시간이 유효하지 않은 경우 로깅하고 기본 처리
+                log.warn("Invalid end time for sleep stage: start={}, end={}, skipping interval", 
+                    intervalStart, intervalEnd);
+                continue; // 이 구간은 건너뛰고 다음 구간으로
+            }
+            stageData.assignToSleepSession(session);
             
-            // 움직임 카운트 설정
+            // 움직임 카운트 설정 (이미 수집된 intervalMovements 사용)
             int movementCount = (int) intervalMovements.stream()
                     .filter(MovementData::hasMovement)
                     .count();
@@ -171,6 +186,72 @@ public class SleepAnalysisService {
         
         sleepStageDataRepository.saveAll(stageDataList);
         log.info("수면 단계 분석 완료: sessionId={}, 생성된 단계 수={}", session.getId(), stageDataList.size());
+    }
+
+    /**
+     * 특정 시간 간격에 해당하는 움직임 데이터를 인덱스 기반으로 효율적으로 수집
+     * O(n) 시간 복잡도로 해당 간격의 데이터만 수집
+     * 
+     * @param movementData 전체 움직임 데이터 (시간순 정렬된 상태)
+     * @param intervalStart 간격 시작 시간
+     * @param intervalEnd 간격 종료 시간
+     * @param startIndex 검색을 시작할 인덱스
+     * @return 해당 간격에 속하는 움직임 데이터 리스트
+     */
+    private List<MovementData> collectMovementsForInterval(List<MovementData> movementData, 
+                                                          LocalDateTime intervalStart, 
+                                                          LocalDateTime intervalEnd, 
+                                                          int startIndex) {
+        List<MovementData> intervalMovements = new ArrayList<>();
+        
+        // startIndex부터 시작하여 해당 간격에 속하는 데이터만 수집
+        for (int i = startIndex; i < movementData.size(); i++) {
+            MovementData movement = movementData.get(i);
+            LocalDateTime timestamp = movement.getTimestamp();
+            
+            // 간격 시작 시간 이전의 데이터는 건너뛰기
+            if (timestamp.isBefore(intervalStart)) {
+                continue;
+            }
+            
+            // 간격 종료 시간 이후의 데이터는 중단 (이후 데이터는 다음 간격에서 처리)
+            if (!timestamp.isBefore(intervalEnd)) {
+                break;
+            }
+            
+            // 간격에 포함되는 데이터 수집
+            intervalMovements.add(movement);
+        }
+        
+        return intervalMovements;
+    }
+    
+    /**
+     * 다음 간격을 위해 movementData 인덱스를 업데이트
+     * 현재 간격을 지나간 데이터들은 건너뛰어 중복 확인을 방지
+     * 
+     * @param movementData 전체 움직임 데이터
+     * @param intervalEnd 현재 간격의 종료 시간
+     * @param currentIndex 현재 인덱스
+     * @return 다음 간격에서 시작할 인덱스
+     */
+    private int updateMovementDataIndex(List<MovementData> movementData, 
+                                       LocalDateTime intervalEnd, 
+                                       int currentIndex) {
+        // 현재 간격을 지나간 데이터들을 건너뛰어 다음 간격에서 효율적으로 시작
+        while (currentIndex < movementData.size()) {
+            LocalDateTime timestamp = movementData.get(currentIndex).getTimestamp();
+            
+            // 현재 간격 종료 시간 이전의 데이터는 이미 처리됨
+            if (timestamp.isBefore(intervalEnd)) {
+                currentIndex++;
+            } else {
+                // 다음 간격에서 처리할 데이터에 도달하면 중단
+                break;
+            }
+        }
+        
+        return currentIndex;
     }
 
     /**
@@ -250,18 +331,29 @@ public class SleepAnalysisService {
 
         // Phase 1: 얕은 잠
         SleepStageData stage1 = SleepStageData.create(SleepStage.LIGHT_SLEEP, sleepStart, 0.7);
-        stage1.endStage(sleepStart.plusMinutes(phase1Duration));
-        stage1.setSleepSession(session);
+        LocalDateTime phase1End = sleepStart.plusMinutes(phase1Duration);
+        if (!stage1.tryEndStage(phase1End)) {
+            log.error("Failed to end phase 1: start={}, end={}", sleepStart, phase1End);
+            return; // 기본 수면 단계 생성 실패
+        }
+        stage1.assignToSleepSession(session);
 
         // Phase 2: 깊은 잠
         SleepStageData stage2 = SleepStageData.create(SleepStage.DEEP_SLEEP, sleepStart.plusMinutes(phase1Duration), 0.8);
-        stage2.endStage(sleepStart.plusMinutes(phase1Duration + phase2Duration));
-        stage2.setSleepSession(session);
+        LocalDateTime phase2End = sleepStart.plusMinutes(phase1Duration + phase2Duration);
+        if (!stage2.tryEndStage(phase2End)) {
+            log.error("Failed to end phase 2: start={}, end={}", sleepStart.plusMinutes(phase1Duration), phase2End);
+            return; // 기본 수면 단계 생성 실패
+        }
+        stage2.assignToSleepSession(session);
 
         // Phase 3: 얕은 잠 + REM
         SleepStageData stage3 = SleepStageData.create(SleepStage.REM, sleepStart.plusMinutes(phase1Duration + phase2Duration), 0.6);
-        stage3.endStage(sleepEnd);
-        stage3.setSleepSession(session);
+        if (!stage3.tryEndStage(sleepEnd)) {
+            log.error("Failed to end phase 3: start={}, end={}", sleepStart.plusMinutes(phase1Duration + phase2Duration), sleepEnd);
+            return; // 기본 수면 단계 생성 실패
+        }
+        stage3.assignToSleepSession(session);
 
         defaultStages.addAll(Arrays.asList(stage1, stage2, stage3));
         sleepStageDataRepository.saveAll(defaultStages);
@@ -292,7 +384,7 @@ public class SleepAnalysisService {
                         default -> Optional.of(0L);
                     };
                     
-                    Long totalDuration = Optional.ofNullable(session.getActualSleepDurationMinutes()).orElse(0);
+                    Long totalDuration = Optional.ofNullable(session.getActualSleepDurationMinutes()).orElse(0).longValue();
                     
                     if (totalDuration == 0) return 0.0;
                     
@@ -302,40 +394,40 @@ public class SleepAnalysisService {
                 .orElse(0.0);
     }
 
-    private SleepStatisticsResponse calculateStatisticsForSessions(List<SleepSession> sessions) {
-        if (sessions.isEmpty()) {
+    private SleepStatisticsResponse calculateStatisticsForSessions(List<SleepSession> completedSessions, int totalSessionsInPeriod) {
+        if (completedSessions.isEmpty()) {
             return createEmptyStatistics();
         }
 
-        Double avgSleepDuration = sessions.stream()
+        Double avgSleepDuration = completedSessions.stream()
                 .mapToInt(s -> s.getActualSleepDurationMinutes() != null ? s.getActualSleepDurationMinutes() : 0)
                 .average()
                 .orElse(0.0);
 
-        Double avgSleepEfficiency = sessions.stream()
+        Double avgSleepEfficiency = completedSessions.stream()
                 .mapToDouble(s -> s.getSleepEfficiencyPercentage() != null ? s.getSleepEfficiencyPercentage() : 0.0)
                 .average()
                 .orElse(0.0);
 
-        Map<String, Long> stageDistribution = calculateStageDistribution(sessions);
+        Map<String, Long> stageDistribution = calculateStageDistribution(completedSessions);
         
-        Double avgDeepSleepPercentage = calculateAverageStagePercentage(sessions, SleepStage.DEEP_SLEEP);
-        Double avgREMSleepPercentage = calculateAverageStagePercentage(sessions, SleepStage.REM);
-        Double avgLightSleepPercentage = calculateAverageStagePercentage(sessions, SleepStage.LIGHT_SLEEP);
+        Double avgDeepSleepPercentage = calculateAverageStagePercentage(completedSessions, SleepStage.DEEP_SLEEP);
+        Double avgREMSleepPercentage = calculateAverageStagePercentage(completedSessions, SleepStage.REM);
+        Double avgLightSleepPercentage = calculateAverageStagePercentage(completedSessions, SleepStage.LIGHT_SLEEP);
 
-        Integer avgWakeUpCount = (int) sessions.stream()
+        Integer avgWakeUpCount = (int) completedSessions.stream()
                 .mapToInt(s -> s.getWakeUpCount() != null ? s.getWakeUpCount() : 0)
                 .average().orElse(0.0);
 
-        Double avgMovementCount = sessions.stream()
+        Double avgMovementCount = completedSessions.stream()
                 .mapToInt(s -> s.getTotalMovementCount() != null ? s.getTotalMovementCount() : 0)
                 .average().orElse(0.0);
 
         return new SleepStatisticsResponse(
                 avgSleepDuration,
                 avgSleepEfficiency,
-                sessions.size(),
-                sessions.size(),
+                totalSessionsInPeriod,  // 해당 기간의 전체 세션 수 (완료되지 않은 것 포함)
+                completedSessions.size(),  // 완료된 세션 수
                 stageDistribution,
                 avgDeepSleepPercentage,
                 avgREMSleepPercentage,

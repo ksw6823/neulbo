@@ -112,11 +112,18 @@ public class MovementDataService {
         List<Object[]> hourlyStats = movementDataRepository.findHourlyMovementStatsBySleepSession(session);
 
         return hourlyStats.stream()
-                .map(stat -> new HourlyMovementPattern(
-                        (LocalDateTime) stat[0],  // hour
-                        ((Number) stat[1]).longValue(),  // movementCount
-                        ((Number) stat[2]).doubleValue() // avgIntensity
-                ))
+                .map(stat -> {
+                    try {
+                        return new HourlyMovementPattern(
+                                safeCastToLocalDateTime(stat, 0, "hour"),
+                                safeCastToLong(stat, 1, "movementCount"),
+                                safeCastToDouble(stat, 2, "avgIntensity")
+                        );
+                    } catch (Exception e) {
+                        log.error("시간대별 움직임 패턴 변환 실패: sessionId={}, data={}", sessionId, stat, e);
+                        throw new BusinessException(ErrorCode.SLEEP_ANALYSIS_FAILED);
+                    }
+                })
                 .collect(Collectors.toList());
     }
 
@@ -130,6 +137,88 @@ public class MovementDataService {
         }
 
         return session;
+    }
+
+    /**
+     * Object[] 배열에서 LocalDateTime을 안전하게 캐스팅
+     */
+    private LocalDateTime safeCastToLocalDateTime(Object[] data, int index, String fieldName) {
+        validateArrayAccess(data, index, fieldName);
+        
+        Object value = data[index];
+        if (value == null) {
+            throw new IllegalArgumentException(String.format("%s 값이 null입니다 (index: %d)", fieldName, index));
+        }
+        
+        if (!(value instanceof LocalDateTime)) {
+            throw new ClassCastException(String.format(
+                "%s 값을 LocalDateTime으로 캐스팅할 수 없습니다. 실제 타입: %s, 값: %s (index: %d)", 
+                fieldName, value.getClass().getSimpleName(), value, index));
+        }
+        
+        return (LocalDateTime) value;
+    }
+
+    /**
+     * Object[] 배열에서 Long을 안전하게 캐스팅
+     */
+    private Long safeCastToLong(Object[] data, int index, String fieldName) {
+        validateArrayAccess(data, index, fieldName);
+        
+        Object value = data[index];
+        if (value == null) {
+            log.warn("{} 값이 null입니다. 기본값 0을 사용합니다 (index: {})", fieldName, index);
+            return 0L;
+        }
+        
+        if (!(value instanceof Number)) {
+            throw new ClassCastException(String.format(
+                "%s 값을 Number로 캐스팅할 수 없습니다. 실제 타입: %s, 값: %s (index: %d)", 
+                fieldName, value.getClass().getSimpleName(), value, index));
+        }
+        
+        return ((Number) value).longValue();
+    }
+
+    /**
+     * Object[] 배열에서 Double을 안전하게 캐스팅
+     */
+    private Double safeCastToDouble(Object[] data, int index, String fieldName) {
+        validateArrayAccess(data, index, fieldName);
+        
+        Object value = data[index];
+        if (value == null) {
+            log.warn("{} 값이 null입니다. 기본값 0.0을 사용합니다 (index: {})", fieldName, index);
+            return 0.0;
+        }
+        
+        if (!(value instanceof Number)) {
+            throw new ClassCastException(String.format(
+                "%s 값을 Number로 캐스팅할 수 없습니다. 실제 타입: %s, 값: %s (index: %d)", 
+                fieldName, value.getClass().getSimpleName(), value, index));
+        }
+        
+        return ((Number) value).doubleValue();
+    }
+
+    /**
+     * 배열 접근 유효성 검증
+     */
+    private void validateArrayAccess(Object[] data, int index, String fieldName) {
+        if (data == null) {
+            throw new IllegalArgumentException("데이터 배열이 null입니다");
+        }
+        
+        if (index < 0) {
+            throw new IllegalArgumentException(String.format(
+                "잘못된 배열 인덱스입니다. %s 필드의 인덱스: %d (음수 불가)", fieldName, index));
+        }
+        
+        if (index >= data.length) {
+            throw new ArrayIndexOutOfBoundsException(String.format(
+                "배열 인덱스가 범위를 벗어났습니다. %s 필드의 인덱스: %d, 배열 크기: %d", 
+                fieldName, index, data.length));
+        }
     }
 
     // 내부 클래스들

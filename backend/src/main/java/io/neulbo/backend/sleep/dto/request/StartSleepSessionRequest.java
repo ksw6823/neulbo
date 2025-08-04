@@ -1,5 +1,6 @@
 package io.neulbo.backend.sleep.dto.request;
 
+import io.neulbo.backend.sleep.validation.ValidSleepStartTime;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -13,6 +14,7 @@ import java.time.LocalDateTime;
 public class StartSleepSessionRequest {
 
     @NotNull(message = "수면 시작 시간은 필수입니다")
+    @ValidSleepStartTime(maxPastHours = 24, message = "수면 시작 시간이 유효하지 않습니다")
     private LocalDateTime sleepStartTime;
 
     @Min(value = 30, message = "예상 수면 시간은 최소 30분 이상이어야 합니다")

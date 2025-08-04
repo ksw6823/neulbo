@@ -1,11 +1,13 @@
 package io.neulbo.backend.sleep.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import io.neulbo.backend.sleep.domain.SleepQuality;
 import io.neulbo.backend.sleep.domain.SleepSession;
 import io.neulbo.backend.sleep.domain.SessionStatus;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -13,8 +15,13 @@ import java.util.stream.Collectors;
 public class SleepSessionResponse {
 
     private final Long id;
+    
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private final LocalDateTime sleepStartTime;
+    
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private final LocalDateTime sleepEndTime;
+    
     private final Integer intendedSleepDurationMinutes;
     private final Integer actualSleepDurationMinutes;
     private final Double sleepEfficiencyPercentage;
@@ -23,6 +30,8 @@ public class SleepSessionResponse {
     private final SleepQuality sleepQuality;
     private final SessionStatus sessionStatus;
     private final String notes;
+    
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private final LocalDateTime createdAt;
     private final List<SleepStageResponse> sleepStages;
 
@@ -39,9 +48,11 @@ public class SleepSessionResponse {
         this.sessionStatus = session.getSessionStatus();
         this.notes = session.getNotes();
         this.createdAt = session.getCreatedAt();
-        this.sleepStages = session.getSleepStages().stream()
-                .map(SleepStageResponse::new)
-                .collect(Collectors.toList());
+        this.sleepStages = session.getSleepStages() == null 
+                ? Collections.emptyList()
+                : session.getSleepStages().stream()
+                    .map(SleepStageResponse::new)
+                    .collect(Collectors.toList());
     }
 
     // 간단한 정보만 포함하는 생성자 (목록 조회용)

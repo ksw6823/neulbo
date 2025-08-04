@@ -114,6 +114,12 @@ public class SleepSession {
         stageData.setSleepSession(this);
     }
 
+    // 수면 단계 데이터 제거
+    public void removeSleepStageData(SleepStageData stageData) {
+        this.sleepStages.remove(stageData);
+        stageData.setSleepSession(null);
+    }
+
     // 수면 품질 업데이트
     public void updateSleepQuality(SleepQuality quality) {
         this.sleepQuality = quality;

@@ -23,7 +23,7 @@ public class SleepStageData {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sleep_session_id", nullable = false)
-    @Setter
+    @Setter(AccessLevel.PROTECTED)
     private SleepSession sleepSession;
 
     @Column(name = "stage_start_time", nullable = false)
@@ -59,12 +59,71 @@ public class SleepStageData {
         return data;
     }
 
-    // 수면 단계 종료
+    /**
+     * 수면 단계를 종료합니다.
+     * 
+     * @param endTime 수면 단계 종료 시간
+     * @throws IllegalArgumentException endTime이 null이거나 stageStartTime보다 이전인 경우
+     */
     public void endStage(LocalDateTime endTime) {
-        this.stageEndTime = endTime;
-        if (stageStartTime != null && endTime != null) {
-            this.durationMinutes = (int) java.time.Duration.between(stageStartTime, endTime).toMinutes();
+        // endTime null 체크
+        if (endTime == null) {
+            throw new IllegalArgumentException("수면 단계 종료 시간은 필수입니다");
         }
+        
+        // stageStartTime이 설정되어 있는지 확인
+        if (stageStartTime == null) {
+            throw new IllegalArgumentException("수면 단계 시작 시간이 설정되지 않았습니다");
+        }
+        
+        // endTime이 stageStartTime 이후인지 검증
+        if (endTime.isBefore(stageStartTime)) {
+            throw new IllegalArgumentException(
+                String.format("수면 단계 종료 시간(%s)은 시작 시간(%s) 이후여야 합니다", 
+                    endTime, stageStartTime)
+            );
+        }
+        
+        this.stageEndTime = endTime;
+        
+        // 지속 시간 계산 (안전하게 검증된 값들로 계산)
+        long minutes = java.time.Duration.between(stageStartTime, endTime).toMinutes();
+        
+        // 음수 방지를 위한 추가 안전장치 (이론적으로는 위 검증으로 불가능하지만 안전을 위해)
+        this.durationMinutes = Math.max(0, (int) minutes);
+    }
+
+    /**
+     * 종료 시간이 유효한지 검증합니다. (예외를 발생시키지 않음)
+     * 
+     * @param endTime 검증할 종료 시간
+     * @return 유효한 경우 true, 그렇지 않으면 false
+     */
+    public boolean isValidEndTime(LocalDateTime endTime) {
+        if (endTime == null) {
+            return false;
+        }
+        if (stageStartTime == null) {
+            return false;
+        }
+        return !endTime.isBefore(stageStartTime);
+    }
+
+    /**
+     * 수면 단계를 안전하게 종료합니다. (예외를 발생시키지 않음)
+     * 
+     * @param endTime 수면 단계 종료 시간
+     * @return 성공적으로 종료된 경우 true, 유효하지 않은 endTime인 경우 false
+     */
+    public boolean tryEndStage(LocalDateTime endTime) {
+        if (!isValidEndTime(endTime)) {
+            return false;
+        }
+        
+        this.stageEndTime = endTime;
+        long minutes = java.time.Duration.between(stageStartTime, endTime).toMinutes();
+        this.durationMinutes = Math.max(0, (int) minutes);
+        return true;
     }
 
     // 움직임 카운트 증가
@@ -85,5 +144,21 @@ public class SleepStageData {
     // REM 수면인지 확인
     public boolean isREM() {
         return sleepStage == SleepStage.REM;
+    }
+
+    // 연관관계 편의 메서드 - SleepSession 설정
+    public void assignToSleepSession(SleepSession sleepSession) {
+        this.sleepSession = sleepSession;
+        if (sleepSession != null) {
+            sleepSession.addSleepStageData(this);
+        }
+    }
+
+    // 연관관계 편의 메서드 - SleepSession에서 제거
+    public void removeFromSleepSession() {
+        if (this.sleepSession != null) {
+            this.sleepSession.removeSleepStageData(this);
+            this.sleepSession = null;
+        }
     }
 } 

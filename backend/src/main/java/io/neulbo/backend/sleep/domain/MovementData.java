@@ -23,7 +23,7 @@ public class MovementData {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sleep_session_id", nullable = false)
-    @Setter
+    @Setter(AccessLevel.PROTECTED)
     private SleepSession sleepSession;
 
     @Column(name = "timestamp", nullable = false)
@@ -49,21 +49,68 @@ public class MovementData {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    // 정적 팩토리 메서드
+    /**
+     * 움직임 데이터를 생성하는 정적 팩토리 메서드
+     * 
+     * @param timestamp 측정 시간 (필수)
+     * @param x X축 가속도 (null인 경우 0.0으로 처리)
+     * @param y Y축 가속도 (null인 경우 0.0으로 처리)
+     * @param z Z축 가속도 (null인 경우 0.0으로 처리)
+     * @return 생성된 MovementData 객체
+     * @throws IllegalArgumentException timestamp가 null인 경우
+     */
     public static MovementData create(LocalDateTime timestamp, Double x, Double y, Double z) {
+        // timestamp는 필수값이므로 null 체크
+        if (timestamp == null) {
+            throw new IllegalArgumentException("측정 시간(timestamp)은 필수입니다");
+        }
+        
+        // 좌표 값들의 null 체크 및 기본값 처리
+        double safeX = x != null ? x : 0.0;
+        double safeY = y != null ? y : 0.0;
+        double safeZ = z != null ? z : 0.0;
+        
         MovementData data = new MovementData();
         data.timestamp = timestamp;
-        data.accelerationX = x;
-        data.accelerationY = y;
-        data.accelerationZ = z;
+        data.accelerationX = safeX;
+        data.accelerationY = safeY;
+        data.accelerationZ = safeZ;
         
         // 움직임 강도 계산 (가속도 벡터의 크기)
-        data.movementIntensity = Math.sqrt(x * x + y * y + z * z);
+        data.movementIntensity = Math.sqrt(safeX * safeX + safeY * safeY + safeZ * safeZ);
         
         // 움직임 타입 분류
         data.movementType = classifyMovementType(data.movementIntensity);
         
         return data;
+    }
+
+    /**
+     * 엄격한 검증을 적용하는 정적 팩토리 메서드
+     * 모든 좌표 값이 null이 아니어야 합니다.
+     * 
+     * @param timestamp 측정 시간 (필수)
+     * @param x X축 가속도 (필수)
+     * @param y Y축 가속도 (필수)
+     * @param z Z축 가속도 (필수)
+     * @return 생성된 MovementData 객체
+     * @throws IllegalArgumentException 어떤 매개변수라도 null인 경우
+     */
+    public static MovementData createStrict(LocalDateTime timestamp, Double x, Double y, Double z) {
+        if (timestamp == null) {
+            throw new IllegalArgumentException("측정 시간(timestamp)은 필수입니다");
+        }
+        if (x == null) {
+            throw new IllegalArgumentException("X축 가속도는 필수입니다");
+        }
+        if (y == null) {
+            throw new IllegalArgumentException("Y축 가속도는 필수입니다");
+        }
+        if (z == null) {
+            throw new IllegalArgumentException("Z축 가속도는 필수입니다");
+        }
+        
+        return create(timestamp, x, y, z);
     }
 
     private static MovementType classifyMovementType(Double intensity) {

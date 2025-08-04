@@ -4,6 +4,7 @@ import io.neulbo.backend.sleep.domain.SleepSession;
 import io.neulbo.backend.sleep.domain.SleepStage;
 import io.neulbo.backend.sleep.domain.SleepStageData;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -69,4 +70,48 @@ public interface SleepStageDataRepository extends JpaRepository<SleepStageData, 
     // 수면 효율 계산을 위한 실제 수면 시간 (AWAKE 제외)
     @Query("SELECT SUM(s.durationMinutes) FROM SleepStageData s WHERE s.sleepSession = :session AND s.sleepStage != 'AWAKE' AND s.durationMinutes IS NOT NULL")
     Optional<Long> findTotalActualSleepTimeBySleepSession(@Param("session") SleepSession session);
+
+    // 벌크 삭제 메서드들
+    
+    /**
+     * 특정 수면 세션의 모든 수면 단계 데이터를 벌크 삭제
+     * 메모리에 로드하지 않고 직접 데이터베이스에서 삭제하여 성능 최적화
+     * @param sleepSession 삭제할 수면 단계 데이터들이 속한 수면 세션
+     * @return 삭제된 행의 수
+     */
+    @Modifying
+    @Query("DELETE FROM SleepStageData s WHERE s.sleepSession = :session")
+    int deleteBySleepSession(@Param("session") SleepSession sleepSession);
+    
+    /**
+     * 특정 수면 세션의 특정 수면 단계 데이터만 벌크 삭제
+     * @param sleepSession 대상 수면 세션
+     * @param sleepStage 삭제할 수면 단계
+     * @return 삭제된 행의 수
+     */
+    @Modifying
+    @Query("DELETE FROM SleepStageData s WHERE s.sleepSession = :session AND s.sleepStage = :stage")
+    int deleteBySleepSessionAndSleepStage(@Param("session") SleepSession sleepSession, @Param("stage") SleepStage sleepStage);
+
+    /**
+     * 특정 시간 범위 내의 수면 단계 데이터를 벌크 삭제
+     * @param sleepSession 대상 수면 세션
+     * @param startTime 시작 시간
+     * @param endTime 종료 시간
+     * @return 삭제된 행의 수
+     */
+    @Modifying
+    @Query("DELETE FROM SleepStageData s WHERE s.sleepSession = :session AND s.stageStartTime >= :startTime AND s.stageStartTime <= :endTime")
+    int deleteBySleepSessionAndTimeRange(@Param("session") SleepSession sleepSession, 
+                                         @Param("startTime") LocalDateTime startTime, 
+                                         @Param("endTime") LocalDateTime endTime);
+    
+    /**
+     * 완료되지 않은 수면 단계 데이터 벌크 삭제 (stageEndTime이 null인 것들)
+     * @param sleepSession 대상 수면 세션
+     * @return 삭제된 행의 수
+     */
+    @Modifying
+    @Query("DELETE FROM SleepStageData s WHERE s.sleepSession = :session AND s.stageEndTime IS NULL")
+    int deleteIncompleteSleepStagesBySleepSession(@Param("session") SleepSession sleepSession);
 } 

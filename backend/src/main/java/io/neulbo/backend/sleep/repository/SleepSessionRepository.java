@@ -29,6 +29,9 @@ public interface SleepSessionRepository extends JpaRepository<SleepSession, Long
     // 특정 사용자의 완료된 수면 세션 목록
     List<SleepSession> findByUserAndSessionStatusOrderByCreatedAtDesc(User user, SessionStatus status);
 
+    // 특정 사용자의 전체 수면 세션 수 조회
+    long countByUser(User user);
+
     // 특정 기간 내 수면 세션 조회
     @Query("SELECT s FROM SleepSession s WHERE s.user = :user AND s.sleepStartTime >= :startDate AND s.sleepStartTime <= :endDate ORDER BY s.sleepStartTime DESC")
     List<SleepSession> findByUserAndDateRange(@Param("user") User user, 
@@ -47,15 +50,44 @@ public interface SleepSessionRepository extends JpaRepository<SleepSession, Long
     @Query("SELECT s FROM SleepSession s WHERE s.user = :user AND s.sleepEfficiencyPercentage >= :efficiency ORDER BY s.sleepStartTime DESC")
     List<SleepSession> findByUserAndSleepEfficiencyGreaterThanEqual(@Param("user") User user, @Param("efficiency") Double efficiency);
 
-    // 특정 사용자의 평균 수면 시간 계산
-    @Query("SELECT AVG(s.actualSleepDurationMinutes) FROM SleepSession s WHERE s.user = :user AND s.sessionStatus = 'COMPLETED'")
-    Optional<Double> findAverageSleepDurationByUser(@Param("user") User user);
+    // 특정 사용자의 평균 수면 시간 계산 (세션 상태별)
+    @Query("SELECT AVG(s.actualSleepDurationMinutes) FROM SleepSession s WHERE s.user = :user AND s.sessionStatus = :status")
+    Optional<Double> findAverageSleepDurationByUserAndStatus(@Param("user") User user, @Param("status") SessionStatus status);
 
-    // 특정 사용자의 평균 수면 효율 계산
-    @Query("SELECT AVG(s.sleepEfficiencyPercentage) FROM SleepSession s WHERE s.user = :user AND s.sessionStatus = 'COMPLETED'")
-    Optional<Double> findAverageSleepEfficiencyByUser(@Param("user") User user);
+    // 특정 사용자의 평균 수면 효율 계산 (세션 상태별)
+    @Query("SELECT AVG(s.sleepEfficiencyPercentage) FROM SleepSession s WHERE s.user = :user AND s.sessionStatus = :status")
+    Optional<Double> findAverageSleepEfficiencyByUserAndStatus(@Param("user") User user, @Param("status") SessionStatus status);
 
-    // 중단된 세션들 조회 (정리용)
-    @Query("SELECT s FROM SleepSession s WHERE s.sessionStatus = 'IN_PROGRESS' AND s.createdAt < :cutoffTime")
-    List<SleepSession> findStaleInProgressSessions(@Param("cutoffTime") LocalDateTime cutoffTime);
+    // 특정 상태의 오래된 세션들 조회 (정리용)
+    @Query("SELECT s FROM SleepSession s WHERE s.sessionStatus = :status AND s.createdAt < :cutoffTime")
+    List<SleepSession> findStaleSessionsByStatus(@Param("status") SessionStatus status, @Param("cutoffTime") LocalDateTime cutoffTime);
+
+    // 기존 호환성을 위한 편의 메서드들
+    
+    /**
+     * 특정 사용자의 완료된 수면 세션의 평균 수면 시간 계산
+     * @param user 사용자
+     * @return 평균 수면 시간 (분)
+     */
+    default Optional<Double> findAverageSleepDurationByUser(User user) {
+        return findAverageSleepDurationByUserAndStatus(user, SessionStatus.COMPLETED);
+    }
+    
+    /**
+     * 특정 사용자의 완료된 수면 세션의 평균 수면 효율 계산
+     * @param user 사용자
+     * @return 평균 수면 효율 (%)
+     */
+    default Optional<Double> findAverageSleepEfficiencyByUser(User user) {
+        return findAverageSleepEfficiencyByUserAndStatus(user, SessionStatus.COMPLETED);
+    }
+    
+    /**
+     * 중단된 세션들 조회 (정리용)
+     * @param cutoffTime 기준 시간
+     * @return 진행 중인 오래된 세션들
+     */
+    default List<SleepSession> findStaleInProgressSessions(LocalDateTime cutoffTime) {
+        return findStaleSessionsByStatus(SessionStatus.IN_PROGRESS, cutoffTime);
+    }
 } 

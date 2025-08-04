@@ -1,5 +1,6 @@
 package io.neulbo.backend.global.error;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -20,7 +21,10 @@ public class ErrorResponse {
     private String message;
     private String code;
     private int status;
+    
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime timestamp;
+    
     private List<FieldError> errors;
     
     private ErrorResponse(final ErrorCode code, final List<FieldError> errors) {

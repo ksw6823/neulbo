@@ -37,7 +37,14 @@ public enum ErrorCode {
     // OAuth 관련
     UNSUPPORTED_OAUTH_PROVIDER(HttpStatus.BAD_REQUEST, "E601", "지원하지 않는 OAuth 제공자입니다."),
     OAUTH_TOKEN_REQUEST_FAILED(HttpStatus.BAD_REQUEST, "E602", "OAuth 토큰 요청에 실패했습니다."),
-    OAUTH_USER_INFO_REQUEST_FAILED(HttpStatus.BAD_REQUEST, "E603", "OAuth 사용자 정보 요청에 실패했습니다.");
+    OAUTH_USER_INFO_REQUEST_FAILED(HttpStatus.BAD_REQUEST, "E603", "OAuth 사용자 정보 요청에 실패했습니다."),
+    
+    // 수면 관련
+    SLEEP_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "E701", "수면 세션을 찾을 수 없습니다."),
+    SLEEP_SESSION_ALREADY_IN_PROGRESS(HttpStatus.CONFLICT, "E702", "이미 진행 중인 수면 세션이 있습니다."),
+    CANNOT_DELETE_ACTIVE_SLEEP_SESSION(HttpStatus.BAD_REQUEST, "E703", "진행 중인 수면 세션은 삭제할 수 없습니다."),
+    INVALID_MOVEMENT_DATA(HttpStatus.BAD_REQUEST, "E704", "유효하지 않은 움직임 데이터입니다."),
+    SLEEP_ANALYSIS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "E705", "수면 분석에 실패했습니다.");
     
     private final HttpStatus httpStatus;
     private final String code;

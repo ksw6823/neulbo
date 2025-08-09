@@ -8,6 +8,7 @@ import io.neulbo.backend.sleep.dto.request.EndSleepSessionRequest;
 import io.neulbo.backend.sleep.dto.request.StartSleepSessionRequest;
 import io.neulbo.backend.sleep.dto.response.SleepSessionResponse;
 import io.neulbo.backend.sleep.repository.SleepSessionRepository;
+import io.neulbo.backend.sleep.validation.TimeProvider;
 import io.neulbo.backend.user.domain.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ public class SleepSessionService {
     private static final int ASSUMED_SLEEP_HOURS = 8;  // 중단된 세션의 가정 수면 시간 (시간)
 
     private final SleepSessionRepository sleepSessionRepository;
+    private final TimeProvider timeProvider;
 
     /**
      * 수면 세션 시작
@@ -184,7 +186,8 @@ public class SleepSessionService {
      */
     @Transactional
     public void cleanupStaleSessions() {
-        LocalDateTime cutoffTime = LocalDateTime.now().minusHours(STALE_SESSION_HOURS); // 24시간 이상 된 진행 중 세션들
+        // 시간대 인식 현재 시간 사용
+        LocalDateTime cutoffTime = timeProvider.now().minusHours(STALE_SESSION_HOURS); // 24시간 이상 된 진행 중 세션들
         List<SleepSession> staleSessions = sleepSessionRepository.findStaleInProgressSessions(cutoffTime);
         
         for (SleepSession session : staleSessions) {

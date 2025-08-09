@@ -2,15 +2,22 @@ package io.neulbo.backend.sleep.validation;
 
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
 /**
  * 수면 종료 시간 유효성 검증 구현체
+ * 시간대 인식 TimeProvider를 사용하여 일관된 시간 처리
  */
+@Component
 public class ValidSleepEndTimeValidator implements ConstraintValidator<ValidSleepEndTime, LocalDateTime> {
     
     private int maxPastDays;
+    
+    @Autowired
+    TimeProvider timeProvider; // package-private for testing
     
     @Override
     public void initialize(ValidSleepEndTime constraintAnnotation) {
@@ -23,7 +30,8 @@ public class ValidSleepEndTimeValidator implements ConstraintValidator<ValidSlee
             return true; // @NotNull에서 처리
         }
         
-        LocalDateTime now = LocalDateTime.now();
+        // 시간대 인식 현재 시간 사용
+        LocalDateTime now = timeProvider.now();
         LocalDateTime maxPastDateTime = now.minusDays(maxPastDays);
         
         // 미래 시간 체크

@@ -2,12 +2,23 @@ package io.neulbo.backend.sleep.validation;
 
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
+/**
+ * 움직임 데이터 타임스탬프 유효성 검증 구현체
+ * 시간대 인식 TimeProvider를 사용하여 일관된 시간 처리
+ */
+@Component
 public class ValidMovementTimestampValidator implements ConstraintValidator<ValidMovementTimestamp, LocalDateTime> {
 
     private int maxPastHours;
+    
+    @Autowired
+    TimeProvider timeProvider; // package-private for testing
 
     @Override
     public void initialize(ValidMovementTimestamp constraintAnnotation) {
@@ -20,7 +31,8 @@ public class ValidMovementTimestampValidator implements ConstraintValidator<Vali
             return true; // @NotNull 에서 처리
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        // 시간대 인식 현재 시간 사용
+        LocalDateTime now = timeProvider.now();
 
         // 미래 시간 검증
         if (timestamp.isAfter(now)) {

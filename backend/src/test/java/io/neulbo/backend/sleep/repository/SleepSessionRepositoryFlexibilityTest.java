@@ -81,50 +81,19 @@ class SleepSessionRepositoryFlexibilityTest {
     }
     
     /**
-     * 서비스 계층에서 사용할 수 있는 헬퍼 메서드 예시
+     * SessionStatusHelper 클래스는 SessionStatus enum으로 이동되었습니다.
+     * 이제 SessionStatus.getFinishedStatuses(), SessionStatus.isFinished() 등의 메서드를 직접 사용하세요.
+     * 또는 별도의 유틸리티가 필요한 경우 SessionStatusUtils 클래스를 참고하세요.
      */
-    public static class SessionStatusHelper {
-        
-        public static List<SessionStatus> getFinishedStatuses() {
-            return List.of(
-                SessionStatus.COMPLETED,
-                SessionStatus.INTERRUPTED,
-                SessionStatus.CANCELLED
-            );
-        }
-        
-        public static List<SessionStatus> getActiveStatuses() {
-            return List.of(SessionStatus.IN_PROGRESS);
-        }
-        
-        public static List<SessionStatus> getSuccessfulStatuses() {
-            return List.of(SessionStatus.COMPLETED);
-        }
-        
-        public static List<SessionStatus> getFailedStatuses() {
-            return List.of(
-                SessionStatus.INTERRUPTED,
-                SessionStatus.CANCELLED
-            );
-        }
-        
-        public static boolean isFinished(SessionStatus status) {
-            return getFinishedStatuses().contains(status);
-        }
-        
-        public static boolean isActive(SessionStatus status) {
-            return getActiveStatuses().contains(status);
-        }
-    }
     
     @Test
-    @DisplayName("헬퍼 메서드 활용 예시")
-    void demonstrateHelperMethods() {
-        // 헬퍼 메서드를 사용한 깔끔한 코드
-        List<SessionStatus> finishedStatuses = SessionStatusHelper.getFinishedStatuses();
-        List<SessionStatus> activeStatuses = SessionStatusHelper.getActiveStatuses();
-        List<SessionStatus> successfulStatuses = SessionStatusHelper.getSuccessfulStatuses();
-        List<SessionStatus> failedStatuses = SessionStatusHelper.getFailedStatuses();
+    @DisplayName("개선된 SessionStatus enum 헬퍼 메서드 활용 예시")
+    void demonstrateImprovedHelperMethods() {
+        // SessionStatus enum에 내장된 헬퍼 메서드들 (메모리 효율적, 재사용 가능)
+        List<SessionStatus> finishedStatuses = SessionStatus.getFinishedStatuses();
+        List<SessionStatus> activeStatuses = SessionStatus.getActiveStatuses();
+        List<SessionStatus> successfulStatuses = SessionStatus.getSuccessfulStatuses();
+        List<SessionStatus> failedStatuses = SessionStatus.getFailedStatuses();
         
         assertThat(finishedStatuses).hasSize(3);
         assertThat(activeStatuses).hasSize(1);
@@ -134,10 +103,25 @@ class SleepSessionRepositoryFlexibilityTest {
             SessionStatus.CANCELLED
         );
         
-        // 상태 검사 메서드
-        assertThat(SessionStatusHelper.isFinished(SessionStatus.COMPLETED)).isTrue();
-        assertThat(SessionStatusHelper.isActive(SessionStatus.IN_PROGRESS)).isTrue();
-        assertThat(SessionStatusHelper.isFinished(SessionStatus.IN_PROGRESS)).isFalse();
+        // static 메서드를 사용한 상태 확인 (Set 기반으로 성능 최적화됨)
+        assertThat(SessionStatus.isFinished(SessionStatus.COMPLETED)).isTrue();
+        assertThat(SessionStatus.isActive(SessionStatus.IN_PROGRESS)).isTrue();
+        assertThat(SessionStatus.isFinished(SessionStatus.IN_PROGRESS)).isFalse();
+        
+        // 추가된 성공/실패 상태 확인 메서드들
+        assertThat(SessionStatus.isSuccessful(SessionStatus.COMPLETED)).isTrue();
+        assertThat(SessionStatus.isFailed(SessionStatus.INTERRUPTED)).isTrue();
+        assertThat(SessionStatus.isFailed(SessionStatus.CANCELLED)).isTrue();
+        assertThat(SessionStatus.isFailed(SessionStatus.COMPLETED)).isFalse();
+        
+        // 인스턴스 메서드도 사용 가능 (더 OOP스러운 접근)
+        SessionStatus completedStatus = SessionStatus.COMPLETED;
+        SessionStatus inProgressStatus = SessionStatus.IN_PROGRESS;
+        
+        assertThat(completedStatus.isFinished()).isTrue();
+        assertThat(completedStatus.isSuccessful()).isTrue();
+        assertThat(inProgressStatus.isActive()).isTrue();
+        assertThat(inProgressStatus.isFinished()).isFalse();
     }
     
     @Test
@@ -166,6 +150,41 @@ class SleepSessionRepositoryFlexibilityTest {
         assertThat(cutoffTime).isBefore(LocalDateTime.now());
     }
     
+    @Test
+    @DisplayName("SessionStatusUtils 유틸리티 클래스 활용 예시")
+    void demonstrateSessionStatusUtils() {
+        // import io.neulbo.backend.sleep.util.SessionStatusUtils;
+        
+        // 복잡한 비즈니스 로직이 필요한 경우 유틸리티 클래스 사용
+        List<SessionStatus> testStatuses = List.of(
+            SessionStatus.COMPLETED,
+            SessionStatus.IN_PROGRESS,
+            SessionStatus.INTERRUPTED,
+            SessionStatus.CANCELLED
+        );
+        
+        // 상태별 개수 계산 (스트림 기반)
+        long finishedCount = io.neulbo.backend.sleep.util.SessionStatusUtils.countFinished(testStatuses);
+        long activeCount = io.neulbo.backend.sleep.util.SessionStatusUtils.countActive(testStatuses);
+        long successfulCount = io.neulbo.backend.sleep.util.SessionStatusUtils.countSuccessful(testStatuses);
+        long failedCount = io.neulbo.backend.sleep.util.SessionStatusUtils.countFailed(testStatuses);
+        
+        assertThat(finishedCount).isEqualTo(3); // COMPLETED, INTERRUPTED, CANCELLED
+        assertThat(activeCount).isEqualTo(1);   // IN_PROGRESS
+        assertThat(successfulCount).isEqualTo(1); // COMPLETED
+        assertThat(failedCount).isEqualTo(2);   // INTERRUPTED, CANCELLED
+        
+        // 상태 전환 가능성 확인
+        assertThat(io.neulbo.backend.sleep.util.SessionStatusUtils.canTransitionTo(
+            SessionStatus.IN_PROGRESS, SessionStatus.COMPLETED)).isTrue();
+        assertThat(io.neulbo.backend.sleep.util.SessionStatusUtils.canTransitionTo(
+            SessionStatus.COMPLETED, SessionStatus.IN_PROGRESS)).isFalse();
+        
+        // 우선순위 확인
+        assertThat(io.neulbo.backend.sleep.util.SessionStatusUtils.getPriority(SessionStatus.IN_PROGRESS))
+            .isLessThan(io.neulbo.backend.sleep.util.SessionStatusUtils.getPriority(SessionStatus.COMPLETED));
+    }
+
     @Test
     @DisplayName("성능 및 확장성 개선 확인")
     void verifyPerformanceAndScalability() {

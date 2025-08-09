@@ -133,8 +133,10 @@ public class SleepAnalysisService {
     /**
      * 움직임 기반 수면 단계 분석 (간단한 규칙 기반)
      * 성능 최적화: O(n²) → O(n + m) 복잡도로 개선 (n: movementData 크기, m: 간격 수)
+     * 
+     * NOTE: 테스트에서 접근 가능하도록 package-private으로 설정됨
      */
-    private void analyzeAndCreateSleepStages(SleepSession session, List<MovementData> movementData) {
+    void analyzeAndCreateSleepStages(SleepSession session, List<MovementData> movementData) {
         LocalDateTime sleepStart = session.getSleepStartTime();
         LocalDateTime sleepEnd = session.getSleepEndTime();
         
@@ -192,16 +194,18 @@ public class SleepAnalysisService {
      * 특정 시간 간격에 해당하는 움직임 데이터를 인덱스 기반으로 효율적으로 수집
      * O(n) 시간 복잡도로 해당 간격의 데이터만 수집
      * 
+     * NOTE: 테스트에서 접근 가능하도록 package-private으로 설정됨
+     * 
      * @param movementData 전체 움직임 데이터 (시간순 정렬된 상태)
      * @param intervalStart 간격 시작 시간
      * @param intervalEnd 간격 종료 시간
      * @param startIndex 검색을 시작할 인덱스
      * @return 해당 간격에 속하는 움직임 데이터 리스트
      */
-    private List<MovementData> collectMovementsForInterval(List<MovementData> movementData, 
-                                                          LocalDateTime intervalStart, 
-                                                          LocalDateTime intervalEnd, 
-                                                          int startIndex) {
+    List<MovementData> collectMovementsForInterval(List<MovementData> movementData, 
+                                                  LocalDateTime intervalStart, 
+                                                  LocalDateTime intervalEnd, 
+                                                  int startIndex) {
         List<MovementData> intervalMovements = new ArrayList<>();
         
         // startIndex부터 시작하여 해당 간격에 속하는 데이터만 수집
@@ -230,14 +234,16 @@ public class SleepAnalysisService {
      * 다음 간격을 위해 movementData 인덱스를 업데이트
      * 현재 간격을 지나간 데이터들은 건너뛰어 중복 확인을 방지
      * 
+     * NOTE: 테스트에서 접근 가능하도록 package-private으로 설정됨
+     * 
      * @param movementData 전체 움직임 데이터
      * @param intervalEnd 현재 간격의 종료 시간
      * @param currentIndex 현재 인덱스
      * @return 다음 간격에서 시작할 인덱스
      */
-    private int updateMovementDataIndex(List<MovementData> movementData, 
-                                       LocalDateTime intervalEnd, 
-                                       int currentIndex) {
+    int updateMovementDataIndex(List<MovementData> movementData, 
+                               LocalDateTime intervalEnd, 
+                               int currentIndex) {
         // 현재 간격을 지나간 데이터들을 건너뛰어 다음 간격에서 효율적으로 시작
         while (currentIndex < movementData.size()) {
             LocalDateTime timestamp = movementData.get(currentIndex).getTimestamp();
@@ -316,47 +322,121 @@ public class SleepAnalysisService {
 
     /**
      * 기본 수면 단계 생성 (움직임 데이터가 없는 경우)
+     * 원자성과 데이터 일관성을 보장하기 위해 모든 단계를 검증한 후 일괄 저장
      */
     private void createDefaultSleepStages(SleepSession session) {
         LocalDateTime sleepStart = session.getSleepStartTime();
         LocalDateTime sleepEnd = session.getSleepEndTime();
         long totalMinutes = ChronoUnit.MINUTES.between(sleepStart, sleepEnd);
 
-        List<SleepStageData> defaultStages = new ArrayList<>();
-
         // 전체 수면을 3단계로 나눔: 얕은잠 -> 깊은잠 -> 얕은잠
         long phase1Duration = totalMinutes * 30 / 100; // 30%
         long phase2Duration = totalMinutes * 40 / 100; // 40%
         long phase3Duration = totalMinutes - phase1Duration - phase2Duration; // 나머지
 
+        // 모든 단계를 먼저 생성하고 검증
+        List<SleepStageCreationResult> stageResults = new ArrayList<>();
+        
         // Phase 1: 얕은 잠
-        SleepStageData stage1 = SleepStageData.create(SleepStage.LIGHT_SLEEP, sleepStart, 0.7);
         LocalDateTime phase1End = sleepStart.plusMinutes(phase1Duration);
-        if (!stage1.tryEndStage(phase1End)) {
-            log.error("Failed to end phase 1: start={}, end={}", sleepStart, phase1End);
-            return; // 기본 수면 단계 생성 실패
-        }
-        stage1.assignToSleepSession(session);
+        stageResults.add(createAndValidateStage(
+                SleepStage.LIGHT_SLEEP, sleepStart, phase1End, 0.7, "Phase 1 (Light Sleep)", session));
 
         // Phase 2: 깊은 잠
-        SleepStageData stage2 = SleepStageData.create(SleepStage.DEEP_SLEEP, sleepStart.plusMinutes(phase1Duration), 0.8);
+        LocalDateTime phase2Start = sleepStart.plusMinutes(phase1Duration);
         LocalDateTime phase2End = sleepStart.plusMinutes(phase1Duration + phase2Duration);
-        if (!stage2.tryEndStage(phase2End)) {
-            log.error("Failed to end phase 2: start={}, end={}", sleepStart.plusMinutes(phase1Duration), phase2End);
-            return; // 기본 수면 단계 생성 실패
-        }
-        stage2.assignToSleepSession(session);
+        stageResults.add(createAndValidateStage(
+                SleepStage.DEEP_SLEEP, phase2Start, phase2End, 0.8, "Phase 2 (Deep Sleep)", session));
 
-        // Phase 3: 얕은 잠 + REM
-        SleepStageData stage3 = SleepStageData.create(SleepStage.REM, sleepStart.plusMinutes(phase1Duration + phase2Duration), 0.6);
-        if (!stage3.tryEndStage(sleepEnd)) {
-            log.error("Failed to end phase 3: start={}, end={}", sleepStart.plusMinutes(phase1Duration + phase2Duration), sleepEnd);
-            return; // 기본 수면 단계 생성 실패
-        }
-        stage3.assignToSleepSession(session);
+        // Phase 3: REM 수면
+        LocalDateTime phase3Start = sleepStart.plusMinutes(phase1Duration + phase2Duration);
+        stageResults.add(createAndValidateStage(
+                SleepStage.REM, phase3Start, sleepEnd, 0.6, "Phase 3 (REM Sleep)", session));
 
-        defaultStages.addAll(Arrays.asList(stage1, stage2, stage3));
-        sleepStageDataRepository.saveAll(defaultStages);
+        // 모든 단계가 성공적으로 생성되었는지 확인
+        List<String> failures = stageResults.stream()
+                .filter(result -> !result.isSuccess())
+                .map(SleepStageCreationResult::getErrorMessage)
+                .collect(Collectors.toList());
+
+        if (!failures.isEmpty()) {
+            // 일부 단계 생성 실패 시 전체 작업 중단하고 로그 남김
+            log.error("기본 수면 단계 생성 실패 - sessionId={}, 실패한 단계들: {}", 
+                    session.getId(), String.join(", ", failures));
+            log.warn("데이터 일관성을 위해 기본 수면 단계 저장을 중단합니다 - sessionId={}", session.getId());
+            return;
+        }
+
+        // 모든 단계가 성공적으로 생성된 경우에만 일괄 저장 (원자성 보장)
+        List<SleepStageData> validStages = stageResults.stream()
+                .map(SleepStageCreationResult::getStageData)
+                .collect(Collectors.toList());
+
+        sleepStageDataRepository.saveAll(validStages);
+        log.info("기본 수면 단계 생성 완료 - sessionId={}, 생성된 단계 수={}", 
+                session.getId(), validStages.size());
+    }
+
+    /**
+     * 수면 단계를 생성하고 검증하는 헬퍼 메서드
+     */
+    private SleepStageCreationResult createAndValidateStage(SleepStage sleepStage, 
+                                                           LocalDateTime startTime, 
+                                                           LocalDateTime endTime, 
+                                                           double confidence, 
+                                                           String phaseName,
+                                                           SleepSession session) {
+        try {
+            SleepStageData stageData = SleepStageData.create(sleepStage, startTime, confidence);
+            
+            if (!stageData.tryEndStage(endTime)) {
+                String errorMsg = String.format("%s 종료 실패: start=%s, end=%s", phaseName, startTime, endTime);
+                return SleepStageCreationResult.failure(errorMsg);
+            }
+            
+            stageData.assignToSleepSession(session);
+            return SleepStageCreationResult.success(stageData);
+            
+        } catch (Exception e) {
+            String errorMsg = String.format("%s 생성 중 예외 발생: %s", phaseName, e.getMessage());
+            log.warn(errorMsg, e);
+            return SleepStageCreationResult.failure(errorMsg);
+        }
+    }
+
+    /**
+     * 수면 단계 생성 결과를 담는 내부 클래스
+     */
+    private static class SleepStageCreationResult {
+        private final boolean success;
+        private final SleepStageData stageData;
+        private final String errorMessage;
+
+        private SleepStageCreationResult(boolean success, SleepStageData stageData, String errorMessage) {
+            this.success = success;
+            this.stageData = stageData;
+            this.errorMessage = errorMessage;
+        }
+
+        public static SleepStageCreationResult success(SleepStageData stageData) {
+            return new SleepStageCreationResult(true, stageData, null);
+        }
+
+        public static SleepStageCreationResult failure(String errorMessage) {
+            return new SleepStageCreationResult(false, null, errorMessage);
+        }
+
+        public boolean isSuccess() {
+            return success;
+        }
+
+        public SleepStageData getStageData() {
+            return stageData;
+        }
+
+        public String getErrorMessage() {
+            return errorMessage;
+        }
     }
 
     private Map<String, Long> calculateStageDistribution(List<SleepSession> sessions) {

@@ -259,7 +259,7 @@ class SleepAnalysisServiceBulkDeleteTest {
         verify(sleepStageDataRepository, times(1)).deleteBySleepSession(testSession);
         verify(movementDataRepository, times(1)).findBySleepSessionOrderByTimestampAsc(testSession);
         
-        System.out.printf("%s: %d개 데이터 벌크 삭제 성공%n", scenario, deleteCount);
+        // 벌크 삭제 성공 검증 완료 (콘솔 출력 제거로 CI/CD 환경 최적화)
     }
 
     @Test

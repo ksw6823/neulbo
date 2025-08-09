@@ -14,7 +14,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "sleep_sessions")
+@Table(name = "sleep_sessions", 
+       indexes = {
+           @Index(name = "idx_sleep_session_user_start_time", 
+                  columnList = "user_id, sleep_start_time",
+                  unique = false),
+           @Index(name = "idx_sleep_session_user_status", 
+                  columnList = "user_id, session_status",
+                  unique = false),
+           @Index(name = "idx_sleep_session_user_created_at", 
+                  columnList = "user_id, created_at",
+                  unique = false),
+           @Index(name = "idx_sleep_session_status_created_at", 
+                  columnList = "session_status, created_at",
+                  unique = false)
+       })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EntityListeners(AuditingEntityListener.class)

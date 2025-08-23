@@ -20,6 +20,19 @@ import java.util.UUID;
 public class UserServiceImpl implements UserService {
     
     private final UserRepository userRepository;
+
+    @Override
+    public User findByUserName(String userName) {
+        if (userName == null) {
+            throw new IllegalArgumentException("사용자 이름은 null일 수 없습니다");
+        }
+
+        return userRepository.findByUsername(userName)
+                .orElseThrow(() -> {
+                    log.error("사용자 조회 실패 - User Name: {}", userName);
+                    return new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userName);
+                });
+    }
     
     @Override
     public User findUserById(UUID userId) {

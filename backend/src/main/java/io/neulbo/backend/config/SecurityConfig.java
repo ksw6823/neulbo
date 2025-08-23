@@ -33,7 +33,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/oauth/login/**", "/token/**").permitAll() // OAuth 로그인 엔드포인트
                         .requestMatchers("/actuator/health").permitAll() // 헬스체크
                         .requestMatchers("/api/auth/test/**").authenticated() // 테스트 엔드포인트는 인증 필요
-                        .anyRequest().authenticated()
+                        .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 

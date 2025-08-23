@@ -34,10 +34,10 @@ dependencies {
 	implementation 'org.slf4j:slf4j-api:2.0.9'
 	implementation 'com.auth0:java-jwt:3.18.1'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-	
+
 	// .env 파일 지원
 	implementation 'me.paulschwarz:spring-dotenv:4.0.0'
-	
+
 	runtimeOnly 'org.postgresql:postgresql'
 
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'

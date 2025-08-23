@@ -1,5 +1,6 @@
 package io.neulbo.backend.user.domain;
 
+import io.neulbo.backend.friends.domain.Friends;
 import io.neulbo.backend.user.dto.AccountResponse;
 import io.neulbo.backend.user.dto.ProfileResponse;
 import io.neulbo.backend.user.dto.SettingsResponse;
@@ -7,6 +8,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -47,6 +49,13 @@ public class User {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    // follow 일대다 관계
+    @OneToMany(mappedBy = "fromUser", fetch = FetchType.LAZY)
+    private List<Friends> followings;
+
+    @OneToMany(mappedBy = "toUser", fetch = FetchType.LAZY)
+    private List<Friends> followers;
 
     @PrePersist
     protected void onCreate() {

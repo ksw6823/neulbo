@@ -17,6 +17,7 @@ public interface UserService {
      * @throws IllegalArgumentException 사용자가 존재하지 않는 경우
      */
     User findUserById(UUID userId);
+    User findByUserName(String userName);
 
     /**
      * 사용자 프로필을 조회합니다.

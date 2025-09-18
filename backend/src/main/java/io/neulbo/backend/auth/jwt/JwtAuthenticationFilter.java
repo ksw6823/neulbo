@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.neulbo.backend.auth.dto.CustomUserDetails;
 import io.neulbo.backend.auth.service.TokenBlacklistService;
 import io.neulbo.backend.global.error.ErrorCode;
-import io.neulbo.backend.global.error.ErrorResponse;
+import io.neulbo.backend.global.dto.ApiResponse;
 import io.neulbo.backend.user.domain.User;
 import io.neulbo.backend.user.repository.UserRepository;
 import jakarta.servlet.FilterChain;
@@ -112,7 +112,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         
-        ErrorResponse errorResponse = ErrorResponse.of(errorCode);
+        ApiResponse<Object> errorResponse = ApiResponse.error(errorCode.getCode(), errorCode.getMessage());
         String jsonResponse = objectMapper.writeValueAsString(errorResponse);
         response.getWriter().write(jsonResponse);
     }

@@ -17,17 +17,17 @@ import java.util.UUID;
  */
 @Slf4j
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/users") // 자동으로 /api/v1/users가 됩니다
 @RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
 
     /**
-     * 사용자 프로필 조회
-     * GET /users/profile
+     * 현재 사용자 프로필 조회
+     * GET /users/me/profile
      */
-    @GetMapping("/profile")
+    @GetMapping("/me/profile")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ProfileResponse> getProfile() {
         UUID userId = SecurityUtils.getCurrentUserId();
@@ -45,10 +45,10 @@ public class UserController {
     }
 
     /**
-     * 사용자 프로필 수정
-     * PUT /users/profile
+     * 현재 사용자 프로필 수정
+     * PUT /users/me/profile
      */
-    @PutMapping("/profile")
+    @PutMapping("/me/profile")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ProfileResponse> updateProfile(@Valid @RequestBody ProfileUpdateRequest request) {
         UUID userId = SecurityUtils.getCurrentUserId();
@@ -66,10 +66,10 @@ public class UserController {
     }
 
     /**
-     * 사용자 계정 정보 조회
-     * GET /users/account
+     * 현재 사용자 계정 정보 조회
+     * GET /users/me/account
      */
-    @GetMapping("/account")
+    @GetMapping("/me/account")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<AccountResponse> getAccount() {
         UUID userId = SecurityUtils.getCurrentUserId();
@@ -87,10 +87,10 @@ public class UserController {
     }
 
     /**
-     * 사용자 계정 정보 수정
-     * PUT /users/account
+     * 현재 사용자 계정 정보 수정
+     * PUT /users/me/account
      */
-    @PutMapping("/account")
+    @PutMapping("/me/account")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<AccountResponse> updateAccount(@Valid @RequestBody AccountUpdateRequest request) {
         UUID userId = SecurityUtils.getCurrentUserId();
@@ -108,10 +108,10 @@ public class UserController {
     }
 
     /**
-     * 사용자 계정 삭제 (탈퇴)
-     * DELETE /users/account
+     * 현재 사용자 계정 삭제 (탈퇴)
+     * DELETE /users/me
      */
-    @DeleteMapping("/account")
+    @DeleteMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> deleteAccount() {
         UUID userId = SecurityUtils.getCurrentUserId();
@@ -121,7 +121,7 @@ public class UserController {
 
         try {
             userService.deleteAccount(userId);
-            return ResponseEntity.ok().build();
+            return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             log.error("계정 삭제 실패 - User ID: {}, Error: {}", userId, e.getMessage());
             return ResponseEntity.badRequest().build();
@@ -129,10 +129,10 @@ public class UserController {
     }
 
     /**
-     * 사용자 설정 조회
-     * GET /users/settings
+     * 현재 사용자 설정 조회
+     * GET /users/me/settings
      */
-    @GetMapping("/settings")
+    @GetMapping("/me/settings")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<SettingsResponse> getSettings() {
         UUID userId = SecurityUtils.getCurrentUserId();
@@ -150,10 +150,10 @@ public class UserController {
     }
 
     /**
-     * 사용자 설정 수정
-     * PUT /users/settings
+     * 현재 사용자 설정 수정
+     * PUT /users/me/settings
      */
-    @PutMapping("/settings")
+    @PutMapping("/me/settings")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<SettingsResponse> updateSettings(@Valid @RequestBody SettingsUpdateRequest request) {
         UUID userId = SecurityUtils.getCurrentUserId();

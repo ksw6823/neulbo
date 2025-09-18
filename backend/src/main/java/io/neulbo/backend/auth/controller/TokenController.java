@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/auth") // 자동으로 /api/v1/auth가 됩니다
 @RequiredArgsConstructor
 public class TokenController {
 
@@ -21,7 +21,7 @@ public class TokenController {
     private final TokenBlacklistService blacklistService;
 
     // 리프레시 토큰을 사용하여 새로운 액세스 토큰을 발급받는 엔드포인트
-    @PostMapping("/refresh")
+    @PostMapping("/tokens/refresh")
     public ResponseEntity<?> refreshAccessToken(@RequestHeader("Authorization") String refreshHeader) {
         if (refreshHeader == null || !refreshHeader.startsWith("Bearer ")) {
             return ResponseEntity.badRequest().body("리프레시 토큰이 필요합니다.");
@@ -44,7 +44,7 @@ public class TokenController {
         return ResponseEntity.ok(Map.of("accessToken", newAccessToken));
     }
 
-    // 로그아웃 엔드포인트
+    // 로그아웃 엔드포인트 - 더 직관적인 위치로 이동
     @PostMapping("/logout")
     public ResponseEntity<?> logout(@RequestHeader("Authorization") String accessHeader) {
         if (accessHeader == null || !accessHeader.startsWith("Bearer ")) {
@@ -68,6 +68,6 @@ public class TokenController {
             return ResponseEntity.status(401).body("잘못된 토큰입니다.");
         }
 
-        return ResponseEntity.ok("로그아웃 성공");
+        return ResponseEntity.ok(Map.of("message", "로그아웃이 성공적으로 처리되었습니다."));
     }
 }

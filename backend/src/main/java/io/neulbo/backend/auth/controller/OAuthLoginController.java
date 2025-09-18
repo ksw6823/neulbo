@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/v1/oauth")
+@RequestMapping("/oauth") // 자동으로 /api/v1/oauth가 됩니다
 @RequiredArgsConstructor
 public class OAuthLoginController {
 

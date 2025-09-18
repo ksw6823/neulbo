@@ -24,9 +24,9 @@ public class GlobalExceptionHandler {
      * 주로 @RequestBody, @RequestPart 어노테이션에서 발생
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    protected ResponseEntity<ApiResponse<Object>> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
+    protected ResponseEntity<ApiResponse<?>> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
         log.error("handleMethodArgumentNotValidException", e);
-        final ApiResponse<Object> response = ApiResponse.error(
+        final ApiResponse<?> response = ApiResponse.error(
             ErrorCode.INVALID_INPUT_VALUE.getCode(),
             ErrorCode.INVALID_INPUT_VALUE.getMessage(),
             e.getBindingResult()
@@ -39,10 +39,10 @@ public class GlobalExceptionHandler {
      * 주로 @RequestParam enum으로 binding 못했을 경우 발생
      */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    protected ResponseEntity<ApiResponse<Object>> handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException e) {
+    protected ResponseEntity<ApiResponse<?>> handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException e) {
         log.error("handleMethodArgumentTypeMismatchException", e);
         final String value = e.getValue() == null ? "" : e.getValue().toString();
-        final ApiResponse<Object> response = ApiResponse.error(
+        final ApiResponse<?> response = ApiResponse.error(
             ErrorCode.INVALID_TYPE_VALUE.getCode(),
             ErrorCode.INVALID_TYPE_VALUE.getMessage(),
             e.getName(), value, e.getErrorCode()
@@ -54,9 +54,9 @@ public class GlobalExceptionHandler {
      * 지원하지 않은 HTTP method 호출 할 경우 발생
      */
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    protected ResponseEntity<ApiResponse<Object>> handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException e) {
+    protected ResponseEntity<ApiResponse<?>> handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException e) {
         log.error("handleHttpRequestMethodNotSupportedException", e);
-        final ApiResponse<Object> response = ApiResponse.error(
+        final ApiResponse<?> response = ApiResponse.error(
             ErrorCode.METHOD_NOT_ALLOWED.getCode(),
             ErrorCode.METHOD_NOT_ALLOWED.getMessage()
         );
@@ -67,9 +67,9 @@ public class GlobalExceptionHandler {
      * @RequestParam 으로 데이터가 넘어오지 않았을 경우
      */
     @ExceptionHandler(MissingServletRequestParameterException.class)
-    protected ResponseEntity<ApiResponse<Object>> handleMissingServletRequestParameterException(MissingServletRequestParameterException e) {
+    protected ResponseEntity<ApiResponse<?>> handleMissingServletRequestParameterException(MissingServletRequestParameterException e) {
         log.error("handleMissingServletRequestParameterException", e);
-        final ApiResponse<Object> response = ApiResponse.error(
+        final ApiResponse<?> response = ApiResponse.error(
             ErrorCode.MISSING_SERVLET_REQUEST_PARAMETER.getCode(),
             ErrorCode.MISSING_SERVLET_REQUEST_PARAMETER.getMessage()
         );
@@ -80,9 +80,9 @@ public class GlobalExceptionHandler {
      * JSON parse error
      */
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    protected ResponseEntity<ApiResponse<Object>> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
+    protected ResponseEntity<ApiResponse<?>> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
         log.error("handleHttpMessageNotReadableException", e);
-        final ApiResponse<Object> response = ApiResponse.error(
+        final ApiResponse<?> response = ApiResponse.error(
             ErrorCode.INVALID_INPUT_VALUE.getCode(),
             ErrorCode.INVALID_INPUT_VALUE.getMessage()
         );
@@ -93,9 +93,9 @@ public class GlobalExceptionHandler {
      * JWT 토큰 검증 실패
      */
     @ExceptionHandler(JWTVerificationException.class)
-    protected ResponseEntity<ApiResponse<Object>> handleJWTVerificationException(JWTVerificationException e) {
+    protected ResponseEntity<ApiResponse<?>> handleJWTVerificationException(JWTVerificationException e) {
         log.error("handleJWTVerificationException", e);
-        final ApiResponse<Object> response = ApiResponse.error(
+        final ApiResponse<?> response = ApiResponse.error(
             ErrorCode.INVALID_TOKEN.getCode(),
             ErrorCode.INVALID_TOKEN.getMessage()
         );
@@ -106,10 +106,10 @@ public class GlobalExceptionHandler {
      * 비즈니스 로직 실행 중 오류 발생
      */
     @ExceptionHandler(BusinessException.class)
-    protected ResponseEntity<ApiResponse<Object>> handleBusinessException(final BusinessException e) {
+    protected ResponseEntity<ApiResponse<?>> handleBusinessException(final BusinessException e) {
         log.error("handleBusinessException", e);
         final ErrorCode errorCode = e.getErrorCode();
-        final ApiResponse<Object> response = ApiResponse.error(
+        final ApiResponse<?> response = ApiResponse.error(
             errorCode.getCode(),
             errorCode.getMessage()
         );
@@ -120,9 +120,9 @@ public class GlobalExceptionHandler {
      * 나머지 모든 예외 처리
      */
     @ExceptionHandler(Exception.class)
-    protected ResponseEntity<ApiResponse<Object>> handleException(Exception e) {
+    protected ResponseEntity<ApiResponse<?>> handleException(Exception e) {
         log.error("handleException", e);
-        final ApiResponse<Object> response = ApiResponse.error(
+        final ApiResponse<?> response = ApiResponse.error(
             ErrorCode.INTERNAL_SERVER_ERROR.getCode(),
             ErrorCode.INTERNAL_SERVER_ERROR.getMessage()
         );

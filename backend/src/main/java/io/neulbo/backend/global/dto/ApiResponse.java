@@ -72,23 +72,23 @@ public class ApiResponse<T> {
     /**
      * 에러 코드를 포함한 실패 응답
      */
-    public static <T> ApiResponse<T> error(String code, String message) {
+    public static ApiResponse<ErrorDetail> error(String code, String message) {
         ErrorDetail errorDetail = new ErrorDetail(code, message);
-        return new ApiResponse<>(false, message, (T) errorDetail);
+        return new ApiResponse<>(false, message, errorDetail);
     }
     
     /**
      * 필드 에러를 포함한 실패 응답 (Validation 에러용)
      */
-    public static <T> ApiResponse<T> error(String code, String message, List<FieldError> fieldErrors) {
+    public static ApiResponse<ErrorDetail> error(String code, String message, List<FieldError> fieldErrors) {
         ErrorDetail errorDetail = new ErrorDetail(code, message, fieldErrors);
-        return new ApiResponse<>(false, message, (T) errorDetail);
+        return new ApiResponse<>(false, message, errorDetail);
     }
     
     /**
      * BindingResult를 포함한 실패 응답 (Validation 에러용)
      */
-    public static <T> ApiResponse<T> error(String code, String message, BindingResult bindingResult) {
+    public static ApiResponse<ErrorDetail> error(String code, String message, BindingResult bindingResult) {
         List<FieldError> fieldErrors = FieldError.of(bindingResult);
         return error(code, message, fieldErrors);
     }
@@ -96,7 +96,7 @@ public class ApiResponse<T> {
     /**
      * 타입 미스매치 에러 응답
      */
-    public static <T> ApiResponse<T> error(String code, String message, String field, String value, String reason) {
+    public static ApiResponse<ErrorDetail> error(String code, String message, String field, String value, String reason) {
         List<FieldError> fieldErrors = FieldError.of(field, value, reason);
         return error(code, message, fieldErrors);
     }

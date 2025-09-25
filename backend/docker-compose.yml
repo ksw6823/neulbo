@@ -8,10 +8,12 @@ services:
       - "8080:8080"  # 직접 노출 (nginx 없이)
     environment:
       - SPRING_PROFILES_ACTIVE=local
-      - DB_URL=jdbc:postgresql://postgres:5432/neulbo
+      - DB_URL=jdbc:postgresql://postgres:5432/neulbodb
       - DB_USERNAME=neulbo
       - DB_PASSWORD=password123
       - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=your_redis_password_here
       - SERVER_PORT=8080
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
@@ -38,7 +40,7 @@ services:
     ports:
       - "5432:5432"  # 개발용으로 노출
     environment:
-      - POSTGRES_DB=neulbo
+      - POSTGRES_DB=neulbodb
       - POSTGRES_USER=neulbo
       - POSTGRES_PASSWORD=password123
     volumes:
@@ -50,14 +52,18 @@ services:
   # Redis
   redis:
     image: redis:alpine
+    command: redis-server --appendonly yes --requirepass your_redis_password_here
     ports:
       - "6379:6379"  # 개발용으로 노출
+    volumes:
+      - redis_data:/data
     networks:
       - neulbo-network
     restart: unless-stopped
 
 volumes:
   postgres_data:
+  redis_data:
 
 networks:
   neulbo-network:

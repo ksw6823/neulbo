@@ -42,7 +42,7 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
      * 
      * @return 활성 카테고리 목록 (활성 음악만 포함, 음악이 없는 카테고리도 포함)
      */
-    @Query("SELECT DISTINCT c FROM Category c LEFT JOIN FETCH c.musicList m ON m.isActive = true WHERE c.isActive = true ORDER BY c.sortOrder")
+    @Query("SELECT DISTINCT c FROM Category c LEFT JOIN FETCH c.musicList m WHERE c.isActive = true AND (m IS NULL OR m.isActive = true) ORDER BY c.sortOrder")
     List<Category> findActiveCategoriesWithActiveMusic();
 
     /**
@@ -81,8 +81,9 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
      * 
      * @return Object[] 배열 리스트 ([Category, Long] 형태)
      */
-    @Query("SELECT c, COUNT(m) FROM Category c LEFT JOIN c.musicList m ON m.isActive = true " +
-           "WHERE c.isActive = true GROUP BY c ORDER BY c.sortOrder")
+    @Query("SELECT c, COUNT(m) FROM Category c LEFT JOIN c.musicList m " +
+           "WHERE c.isActive = true AND (m IS NULL OR m.isActive = true) " +
+           "GROUP BY c ORDER BY c.sortOrder")
     List<Object[]> findActiveCategoriesWithMusicCount();
 
     /**
@@ -92,7 +93,8 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
      * 
      * @return Object[] 배열 리스트 ([Category, Long] 형태)
      */
-    @Query("SELECT c, COUNT(m) FROM Category c LEFT JOIN c.musicList m ON m.isActive = true " +
+    @Query("SELECT c, COUNT(m) FROM Category c LEFT JOIN c.musicList m " +
+           "WHERE (m IS NULL OR m.isActive = true) " +
            "GROUP BY c ORDER BY c.sortOrder")
     List<Object[]> findAllCategoriesWithMusicCount();
 } 

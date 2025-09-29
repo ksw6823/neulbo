@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -29,12 +30,14 @@ public interface UserChallengeRepository extends JpaRepository<UserChallenge, Lo
     
     // 배치 업데이트: 여러 챌린지의 완료 일수 증가
     @Modifying
+    @Transactional
     @Query("UPDATE UserChallenge uc SET uc.completedDays = uc.completedDays + 1 " +
            "WHERE uc.id IN :userChallengeIds")
     int incrementCompletedDaysForChallenges(@Param("userChallengeIds") List<Long> userChallengeIds);
     
     // 배치 업데이트: 완료된 챌린지들의 상태를 COMPLETED로 변경
     @Modifying
+    @Transactional
     @Query("UPDATE UserChallenge uc SET uc.status = :completedStatus " +
            "WHERE uc.completedDays >= uc.challenge.durationDays " +
            "AND uc.status = :activeStatus")

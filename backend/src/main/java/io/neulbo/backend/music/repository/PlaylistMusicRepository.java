@@ -2,9 +2,11 @@ package io.neulbo.backend.music.repository;
 
 import io.neulbo.backend.music.domain.PlaylistMusic;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -62,6 +64,8 @@ public interface PlaylistMusicRepository extends JpaRepository<PlaylistMusic, UU
     /**
      * 사용자의 모든 플레이리스트에서 특정 음악 제거
      */
+    @Modifying
+    @Transactional
     @Query("DELETE FROM PlaylistMusic pm WHERE pm.music.id = :musicId AND pm.playlist.user.id = :userId")
     void deleteByMusicIdAndUserId(@Param("musicId") UUID musicId, @Param("userId") UUID userId);
 

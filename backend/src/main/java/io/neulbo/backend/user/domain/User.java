@@ -35,6 +35,12 @@ public class User {
     @Column(length = 100)
     private String username;
 
+    @Column(length = 100)
+    private String email;
+
+    @Column(name = "full_name", length = 100)
+    private String fullName;
+
     @Column(name = "is_private", nullable = false)
     @Builder.Default
     private Boolean isPrivate = false;
@@ -147,5 +153,27 @@ public class User {
         }
         
         this.currentPoints -= points;
+    }
+
+    // OAuth 관련 메서드들
+    public boolean hasEmail() {
+        return email != null && !email.trim().isEmpty();
+    }
+
+    public void updateEmail(String email) {
+        this.email = email;
+    }
+
+    /**
+     * OAuth 사용자 생성을 위한 정적 팩토리 메서드
+     */
+    public static User createOAuthUser(String provider, String providerId, String email, String displayName, String fullName) {
+        return User.builder()
+                .provider(provider)
+                .providerId(providerId)
+                .email(email)
+                .username(displayName)
+                .fullName(fullName)
+                .build();
     }
 }

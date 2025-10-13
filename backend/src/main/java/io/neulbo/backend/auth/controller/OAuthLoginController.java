@@ -1,77 +1,58 @@
 package io.neulbo.backend.auth.controller;
 
 import io.neulbo.backend.auth.dto.*;
-import io.neulbo.backend.auth.jwt.JwtProvider;
-import io.neulbo.backend.auth.service.OAuthLoginService;
-import io.neulbo.backend.auth.service.RefreshTokenService;
+import io.neulbo.backend.auth.service.DirectOAuthLoginService;
 import io.neulbo.backend.global.error.ErrorCode;
 import io.neulbo.backend.global.exception.BusinessException;
-import io.neulbo.backend.user.domain.User;
-import io.neulbo.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 import jakarta.validation.Valid;
 
-import java.util.Map;
-import java.util.Optional;
-
 @RestController
 @RequestMapping("/oauth") // 자동으로 /api/v1/oauth가 됩니다
 @RequiredArgsConstructor
 public class OAuthLoginController {
 
-    private final Map<String, OAuthLoginService> loginServices;
-    private final UserRepository userRepository;
-    private final JwtProvider jwtProvider;
-    private final RefreshTokenService refreshTokenService;
+    private final DirectOAuthLoginService directOAuthLoginService;
 
     /**
      * OAuth 로그인 (리액티브 방식 - 권장)
+     * 프론트엔드에서 OAuth 제공자로부터 직접 받아온 사용자 정보로 로그인/회원가입 처리
      */
-    @PostMapping("/login/{provider}")
+    @PostMapping("/login")
     public Mono<ResponseEntity<LoginResponse>> login(
-            @PathVariable String provider,
-            @Valid @RequestBody OAuthCodeRequest request) {
-        OAuthLoginService service = loginServices.get(provider.toLowerCase());
-        if (service == null) {
-            return Mono.error(new BusinessException(ErrorCode.UNSUPPORTED_OAUTH_PROVIDER));
-        }
-
-        return service.loginReactive(request.code(), provider)
+            @Valid @RequestBody OAuthUserDataRequest request) {
+        
+        return directOAuthLoginService.loginWithUserData(request)
                 .map(ResponseEntity::ok)
                 .onErrorMap(Exception.class, e -> {
                     if (e instanceof BusinessException) {
                         return e;
                     }
-                    return new BusinessException(ErrorCode.OAUTH_TOKEN_REQUEST_FAILED, e);
+                    return new BusinessException(ErrorCode.OAUTH_LOGIN_FAILED, 
+                            "OAuth 로그인 중 오류가 발생했습니다", e);
                 });
     }
 
     /**
      * OAuth 로그인 (블로킹 방식 - 하위 호환성)
-     * 
-     * @deprecated 리액티브 방식 사용을 권장합니다.
      */
-    @PostMapping("/login/{provider}/blocking")
+    @PostMapping("/login/blocking")
     public ResponseEntity<LoginResponse> loginBlocking(
-            @PathVariable String provider,
-            @Valid @RequestBody OAuthCodeRequest request) {
-        OAuthLoginService service = loginServices.get(provider.toLowerCase());
-        if (service == null) {
-            throw new BusinessException(ErrorCode.UNSUPPORTED_OAUTH_PROVIDER);
-        }
-
+            @Valid @RequestBody OAuthUserDataRequest request) {
+        
         try {
-            // 블로킹 메서드는 리액티브 체인 외부에서만 사용
-            LoginResponse response = service.login(request.code(), provider);
+            LoginResponse response = directOAuthLoginService.loginWithUserDataBlocking(request);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             if (e instanceof BusinessException) {
                 throw e;
             }
-            throw new BusinessException(ErrorCode.OAUTH_TOKEN_REQUEST_FAILED, e);
+            throw new BusinessException(ErrorCode.OAUTH_LOGIN_FAILED, 
+                    "OAuth 로그인 중 오류가 발생했습니다", e);
         }
     }
+
 }

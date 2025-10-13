@@ -38,6 +38,10 @@ public enum ErrorCode {
     UNSUPPORTED_OAUTH_PROVIDER(HttpStatus.BAD_REQUEST, "E601", "지원하지 않는 OAuth 제공자입니다."),
     OAUTH_TOKEN_REQUEST_FAILED(HttpStatus.BAD_REQUEST, "E602", "OAuth 토큰 요청에 실패했습니다."),
     OAUTH_USER_INFO_REQUEST_FAILED(HttpStatus.BAD_REQUEST, "E603", "OAuth 사용자 정보 요청에 실패했습니다."),
+    INVALID_OAUTH_USER_DATA(HttpStatus.BAD_REQUEST, "E604", "유효하지 않은 OAuth 사용자 데이터입니다."),
+    EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "E605", "이미 존재하는 이메일입니다."),
+    USER_CREATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "E606", "사용자 생성에 실패했습니다."),
+    OAUTH_LOGIN_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "E607", "OAuth 로그인에 실패했습니다."),
     
     // 수면 관련
     SLEEP_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "E701", "수면 세션을 찾을 수 없습니다."),

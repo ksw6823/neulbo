@@ -19,6 +19,11 @@ import reactor.core.scheduler.Schedulers;
 
 import java.util.Optional;
 
+/**
+ * @deprecated Authorization Code 방식은 더 이상 사용되지 않습니다. 
+ *             {@link DirectOAuthLoginService}를 사용하세요.
+ */
+@Deprecated(since = "2025-10-12", forRemoval = true)
 @Slf4j
 @RequiredArgsConstructor
 public abstract class AbstractOAuthLoginService implements OAuthLoginService {

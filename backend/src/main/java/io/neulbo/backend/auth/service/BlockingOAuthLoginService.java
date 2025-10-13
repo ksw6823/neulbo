@@ -5,14 +5,16 @@ import io.neulbo.backend.auth.dto.OAuthUser;
 import io.neulbo.backend.auth.dto.LoginResponse;
 
 /**
- * 블로킹 OAuth 로그인 서비스 인터페이스
+ * 블로킹 방식 OAuth 로그인 서비스 인터페이스
  * 
- * 이 인터페이스는 하위 호환성을 위한 블로킹 API를 제공합니다.
- * 리액티브 체인 외부에서 사용되어야 하며, 내부적으로 리액티브 메서드를 
- * 적절한 스케줄러에서 블로킹 호출로 변환합니다.
+ * 이 인터페이스는 전통적인 블로킹 API를 제공합니다.
+ * 성능상의 이유로 리액티브 방식을 우선 사용하는 것을 권장하지만,
+ * 기존 코드와의 호환성을 위해 제공됩니다.
  * 
- * @deprecated 새로운 코드에서는 OAuthLoginService의 리액티브 메서드 사용을 권장합니다.
+ * @deprecated Authorization Code 방식은 더 이상 사용되지 않습니다. 
+ *             {@link DirectOAuthLoginService}를 사용하세요.
  */
+@Deprecated(since = "2025-10-12", forRemoval = true)
 public interface BlockingOAuthLoginService {
 
     /**

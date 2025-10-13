@@ -11,7 +11,11 @@ import reactor.core.publisher.Mono;
  * 이 인터페이스는 완전한 비블로킹 리액티브 API를 제공합니다.
  * 모든 메서드는 Mono를 반환하여 리액티브 스트림 내에서 
  * 블로킹 없이 체이닝할 수 있습니다.
+ * 
+ * @deprecated Authorization Code 방식은 더 이상 사용되지 않습니다. 
+ *             {@link DirectOAuthLoginService}를 사용하세요.
  */
+@Deprecated(since = "2025-10-12", forRemoval = true)
 public interface OAuthLoginService extends BlockingOAuthLoginService {
 
     /**

@@ -79,16 +79,15 @@ public class DirectOAuthLoginService {
      */
     private void validateUserData(OAuthUserDataRequest userData) {
         if (userData == null) {
-            throw new BusinessException(ErrorCode.INVALID_OAUTH_USER_DATA, "사용자 데이터가 null입니다");
+            throw new BusinessException("사용자 데이터가 null입니다", ErrorCode.INVALID_OAUTH_USER_DATA);
         }
         
         if (!userData.hasRequiredFields()) {
-            throw new BusinessException(ErrorCode.INVALID_OAUTH_USER_DATA, "필수 필드(provider, providerId)가 누락되었습니다");
+            throw new BusinessException("필수 필드(provider, providerId)가 누락되었습니다", ErrorCode.INVALID_OAUTH_USER_DATA);
         }
         
         if (!userData.isSupportedProvider()) {
-            throw new BusinessException(ErrorCode.UNSUPPORTED_OAUTH_PROVIDER, 
-                    "지원되지 않는 OAuth 제공자입니다: " + userData.provider());
+            throw new BusinessException("지원되지 않는 OAuth 제공자입니다: " + userData.provider(), ErrorCode.UNSUPPORTED_OAUTH_PROVIDER);
         }
 
         // 제공자별 추가 검증
@@ -105,8 +104,7 @@ public class DirectOAuthLoginService {
             case "google":
                 // Google은 이메일이 필수
                 if (!userData.hasEmail()) {
-                    throw new BusinessException(ErrorCode.INVALID_OAUTH_USER_DATA, 
-                            "Google 로그인은 이메일이 필수입니다");
+                    throw new BusinessException("Google 로그인은 이메일이 필수입니다", ErrorCode.INVALID_OAUTH_USER_DATA);
                 }
                 break;
             case "kakao":
@@ -147,8 +145,7 @@ public class DirectOAuthLoginService {
             Optional<User> emailUser = userRepository.findByEmail(userData.email());
             if (emailUser.isPresent()) {
                 // 이미 다른 제공자로 가입된 이메일
-                throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS, 
-                        String.format("이메일 %s은 이미 다른 방법으로 가입된 계정입니다", userData.email()));
+                throw new BusinessException(String.format("이메일 %s은 이미 다른 방법으로 가입된 계정입니다", userData.email()), ErrorCode.EMAIL_ALREADY_EXISTS);
             }
         }
 
@@ -213,8 +210,7 @@ public class DirectOAuthLoginService {
                 return new UserCreationResult(user.get(), false);
             }
             
-            throw new BusinessException(ErrorCode.USER_CREATION_FAILED, 
-                    "사용자 생성 중 오류가 발생했습니다", e);
+            throw new BusinessException("사용자 생성 중 오류가 발생했습니다", ErrorCode.USER_CREATION_FAILED, e);
         }
     }
 

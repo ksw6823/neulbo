@@ -31,8 +31,7 @@ public class OAuthLoginController {
                     if (e instanceof BusinessException) {
                         return e;
                     }
-                    return new BusinessException(ErrorCode.OAUTH_LOGIN_FAILED, 
-                            "OAuth 로그인 중 오류가 발생했습니다", e);
+                    return new BusinessException("OAuth 로그인 중 오류가 발생했습니다", ErrorCode.OAUTH_LOGIN_FAILED, e);
                 });
     }
 
@@ -50,8 +49,7 @@ public class OAuthLoginController {
             if (e instanceof BusinessException) {
                 throw e;
             }
-            throw new BusinessException(ErrorCode.OAUTH_LOGIN_FAILED, 
-                    "OAuth 로그인 중 오류가 발생했습니다", e);
+            throw new BusinessException("OAuth 로그인 중 오류가 발생했습니다", ErrorCode.OAUTH_LOGIN_FAILED, e);
         }
     }
 
